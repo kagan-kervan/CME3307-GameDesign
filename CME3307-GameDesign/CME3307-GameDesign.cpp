@@ -6,7 +6,7 @@
 //-----------------------------------------------------------------
 // Include Files
 //-----------------------------------------------------------------
-#include "SpaceOut.h"
+#include "CME3307-GameDesign.h"
 
 //-----------------------------------------------------------------
 // Game Engine Functions
@@ -42,27 +42,12 @@ void GameStart(HWND hWindow)
     // Create and load the bitmaps
     HDC hDC = GetDC(hWindow);
     _pDesertBitmap = new Bitmap(hDC, IDB_DESERT, _hInstance);
-    _pCarBitmap = new Bitmap(hDC, IDB_CAR, _hInstance);
-    _pSmCarBitmap = new Bitmap(hDC, IDB_SMCAR, _hInstance);
-    _pMissileBitmap = new Bitmap(hDC, IDB_MISSILE, _hInstance);
-    _pBlobboBitmap = new Bitmap(hDC, IDB_BLOBBO, _hInstance);
-    _pBMissileBitmap = new Bitmap(hDC, IDB_BMISSILE, _hInstance);
-    _pJellyBitmap = new Bitmap(hDC, IDB_JELLY, _hInstance);
-    _pJMissileBitmap = new Bitmap(hDC, IDB_JMISSILE, _hInstance);
-    _pTimmyBitmap = new Bitmap(hDC, IDB_TIMMY, _hInstance);
-    _pTMissileBitmap = new Bitmap(hDC, IDB_TMISSILE, _hInstance);
-    _pSmExplosionBitmap = new Bitmap(hDC, IDB_SMEXPLOSION, _hInstance);
-    _pLgExplosionBitmap = new Bitmap(hDC, IDB_LGEXPLOSION, _hInstance);
-    _pGameOverBitmap = new Bitmap(hDC, IDB_GAMEOVER, _hInstance);
-
     // Create the starry background
     _pBackground = new StarryBackground(600, 450);
 
     // Play the background music
-    _pGame->PlayMIDISong(TEXT("Music.mid"));
+        //_pGame->PlayMIDISong(TEXT("Music.mid"));
 
-    // Start the game
-    NewGame();
 }
 
 void GameEnd()
@@ -179,13 +164,13 @@ void HandleKeys()
         if (GetAsyncKeyState(VK_LEFT) < 0)
         {
             // Move left
-            ptVelocity.x = max(ptVelocity.x - 1, -4);
+            ptVelocity.x = max(ptVelocity.x - 1L, -4L);
             _pCarSprite->SetVelocity(ptVelocity);
         }
         else if (GetAsyncKeyState(VK_RIGHT) < 0)
         {
             // Move right
-            ptVelocity.x = min(ptVelocity.x + 2, 6);
+            ptVelocity.x = min(ptVelocity.x + 2L, 6L);
             _pCarSprite->SetVelocity(ptVelocity);
         }
 
@@ -200,9 +185,6 @@ void HandleKeys()
             pSprite->SetVelocity(0, -7);
             _pGame->AddSprite(pSprite);
 
-            // Play the missile (fire) sound
-            PlaySound((LPCSTR)IDW_MISSILE, _hInstance, SND_ASYNC |
-                SND_RESOURCE | SND_NOSTOP);
 
             // Reset the input delay
             _iFireInputDelay = 0;
@@ -242,8 +224,6 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
             pHitter == _pJellyBitmap || pHitter == _pTimmyBitmap)))
     {
         // Play the small explosion sound
-        PlaySound((LPCSTR)IDW_LGEXPLODE, _hInstance, SND_ASYNC |
-            SND_RESOURCE);
 
         // Kill both sprites
         pSpriteHitter->Kill();
@@ -273,8 +253,6 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
             pHitter == _pJMissileBitmap || pHitter == _pTMissileBitmap)))
     {
         // Play the large explosion sound
-        PlaySound((LPCSTR)IDW_LGEXPLODE, _hInstance, SND_ASYNC |
-            SND_RESOURCE);
 
         // Kill the missile sprite
         if (pHitter == _pCarBitmap)
@@ -301,8 +279,6 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
         if (--_iNumLives == 0)
         {
             // Play the game over sound
-            PlaySound((LPCSTR)IDW_GAMEOVER, _hInstance, SND_ASYNC |
-                SND_RESOURCE);
             _bGameOver = TRUE;
         }
     }
@@ -318,8 +294,6 @@ void SpriteDying(Sprite* pSprite)
         pSprite->GetBitmap() == _pTMissileBitmap)
     {
         // Play the small explosion sound
-        PlaySound((LPCSTR)IDW_SMEXPLODE, _hInstance, SND_ASYNC |
-            SND_RESOURCE | SND_NOSTOP);
 
         // Create a small explosion sprite at the missile's position
         RECT rcBounds = { 0, 0, 600, 450 };
@@ -358,34 +332,5 @@ void NewGame()
 
 void AddAlien()
 {
-    // Create a new random alien sprite
-    RECT          rcBounds = { 0, 0, 600, 410 };
-    AlienSprite* pSprite;
-    switch (rand() % 3)
-    {
-    case 0:
-        // Blobbo
-        pSprite = new AlienSprite(_pBlobboBitmap, rcBounds, BA_BOUNCE);
-        pSprite->SetNumFrames(8);
-        pSprite->SetPosition(((rand() % 2) == 0) ? 0 : 600, rand() % 370);
-        pSprite->SetVelocity((rand() % 7) - 2, (rand() % 7) - 2);
-        break;
-    case 1:
-        // Jelly
-        pSprite = new AlienSprite(_pJellyBitmap, rcBounds, BA_BOUNCE);
-        pSprite->SetNumFrames(8);
-        pSprite->SetPosition(rand() % 600, rand() % 370);
-        pSprite->SetVelocity((rand() % 5) - 2, (rand() % 5) + 3);
-        break;
-    case 2:
-        // Timmy
-        pSprite = new AlienSprite(_pTimmyBitmap, rcBounds, BA_WRAP);
-        pSprite->SetNumFrames(8);
-        pSprite->SetPosition(rand() % 600, rand() % 370);
-        pSprite->SetVelocity((rand() % 7) + 3, 0);
-        break;
-    }
 
-    // Add the alien sprite
-    _pGame->AddSprite(pSprite);
 }

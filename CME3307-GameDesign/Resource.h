@@ -2,6 +2,10 @@
 // Microsoft Visual C++ tarafından oluşturulan ekleme dosyası.
 // Kullanan CME3307-GameDesign.rc
 
+
+#define IDI_SPACEOUT            2000
+#define IDI_SPACEOUT_SM         2001
+#define IDB_DESERT              2002
 #define IDS_APP_TITLE			103
 
 #define IDR_MAINFRAME			128
