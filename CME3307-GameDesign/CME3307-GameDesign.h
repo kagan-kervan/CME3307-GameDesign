@@ -14,6 +14,7 @@
 #include "Bitmap.h"
 #include "Sprite.h"
 #include "Background.h"
+#include "AlienSprite.h"
 
 //-----------------------------------------------------------------
 // Global Variables
