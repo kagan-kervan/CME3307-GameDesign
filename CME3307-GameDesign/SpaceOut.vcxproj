@@ -14,7 +14,7 @@
     <VCProjectVersion>17.0</VCProjectVersion>
     <ProjectGuid>{824EC981-12EF-432C-AAAE-0D16EBA0706A}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <ProjectName>CME3307-GameDesign</ProjectName>
+    <ProjectName>SpaceOut</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -106,6 +106,7 @@
   <ItemGroup>
     <ClInclude Include="Background.h" />
     <ClInclude Include="Bitmap.h" />
+    <ClInclude Include="Camera.h" />
     <ClInclude Include="GameEngine.h" />
     <ClInclude Include="MazeGenerator.h" />
     <ClInclude Include="Resource.h" />

@@ -62,6 +62,7 @@ public:
   virtual SPRITEACTION  Update();
   virtual Sprite*       AddSprite();
   void                  Draw(HDC hDC);
+  void                  Draw(HDC hDC, int cameraX, int cameraY);
   BOOL                  IsPointInside(int x, int y);
   BOOL                  TestCollision(Sprite* pTestSprite);
   void                  Kill()      { m_bDying = TRUE; };

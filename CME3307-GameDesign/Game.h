@@ -11,6 +11,7 @@
 #include "Sprite.h"
 #include "Background.h"
 #include  "MazeGenerator.h"
+#include "Camera.h"
 
 //--------------------------------------------------
 //Global Variables
@@ -27,6 +28,7 @@ Bitmap* wallBitmap;
 MazeGenerator* mazeGenerator;
 Sprite* wallSpriteList;
 int window_X, window_Y;
+Camera* camera = camera;
 class Game {
     Game() = default;
 };

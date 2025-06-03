@@ -115,4 +115,5 @@ public:
               iFrameRate; };
   BOOL      GetSleep() { return m_bSleep; };
   void      SetSleep(BOOL bSleep) { m_bSleep = bSleep; };
+  std::vector<Sprite*>& GetSprites() { return m_vSprites; }
 };

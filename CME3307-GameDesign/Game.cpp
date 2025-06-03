@@ -8,7 +8,7 @@
 BOOL GameInitialize(HINSTANCE hInstance)
 {
     window_X = 1500;
-    window_Y = 800;
+    window_Y = 700;
     // Create the game engine
     game_engine = new GameEngine(hInstance, TEXT("(Space Out)"),
         TEXT("(Space Out)"), IDI_SPACEOUT, IDI_SPACEOUT_SM, window_X, window_Y);
@@ -20,6 +20,9 @@ BOOL GameInitialize(HINSTANCE hInstance)
 
     // Store the instance handle
     instance = hInstance;
+
+    AllocConsole();
+    freopen("CONOUT$", "w", stdout);
 
     return TRUE;
 }
@@ -41,6 +44,7 @@ void GameStart(HWND hWindow)
     backgroundBitmap = new Bitmap(hDC, R"(background.bmp)");
     wallBitmap = new Bitmap(hDC, "wall.bmp");
     background = new Background(window_X, window_Y, RGB(0, 0, 0));
+    camera = new Camera(0, 0, window_X, window_Y);
     mazeGenerator = new MazeGenerator(20,20);
     GenerateMaze();
 
@@ -77,20 +81,49 @@ void GameDeactivate(HWND hWindow)
 
 void GamePaint(HDC hDC)
 {
-    // Draw the background
-    background->Draw(hDC);
-
-    // Draw the sprites
-    game_engine->DrawSprites(hDC);
+    // Draw background with camera offset
+    background->Draw(hDC, camera->x,camera->y);
+    // Draw all sprites with camera offset
+    for (auto* sprite : game_engine->GetSprites()) {
+        sprite->Draw(hDC, camera->x, camera->y);
+    }
 }
 
 void GameCycle()
 {
+    // Update the background
+    background->Update();
 
+    // Update the sprites
+    game_engine->UpdateSprites();
+
+    // Obtain a device context for repainting the game
+    HWND  hWindow = game_engine->GetWindow();
+    HDC   hDC = GetDC(hWindow);
+
+    // Paint the game to the offscreen device context
+    GamePaint(offscreenDC);
+    GamePaint(hDC);
+
+    // Blit the offscreen bitmap to the game screen
+    /*BitBlt(hDC, 0, 0, game_engine->GetWidth(), game_engine->GetHeight(),
+        offscreenDC, 0, 0, SRCCOPY);*/
+
+    // Cleanup
+    ReleaseDC(hWindow, hDC);
 }
 
 void HandleKeys()
 {
+    const int CAMERA_SPEED = 10;
+    if (GetAsyncKeyState(VK_LEFT) & 0x8000)   
+        camera->Move(-CAMERA_SPEED, 0);
+    if (GetAsyncKeyState(VK_RIGHT) & 0x8000)  
+        camera->Move(CAMERA_SPEED, 0);
+    if (GetAsyncKeyState(VK_UP) & 0x8000)     
+        camera->Move(0, -CAMERA_SPEED);
+    if (GetAsyncKeyState(VK_DOWN) & 0x8000)   
+        camera->Move(0, CAMERA_SPEED);
 
 }
 
@@ -133,7 +166,8 @@ void GenerateMaze() {
                 int posX = x * tile_width;
                 int posY = y * tile_height;
                 POINT pos = { posX, posY };
-                Sprite* wall = new Sprite(wallBitmap, pos, { 0,0 }, 1, rcBounds, BA_STOP);
+                Sprite* wall = new Sprite(wallBitmap,rcBounds, BA_STOP);
+                wall->SetPosition(pos);
                 game_engine->AddSprite(wall);
             }
         }

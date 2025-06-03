@@ -55,6 +55,20 @@ void Background::Draw(HDC hDC)
   }
 }
 
+void Background::Draw(HDC hDC, int camX, int camY)
+{
+    // Draw the background
+    if (m_pBitmap != NULL)
+        m_pBitmap->Draw(hDC, camX, camY);
+    else
+    {
+        RECT    rect = { camX, camY, m_iWidth+camX, m_iHeight+camY };
+        HBRUSH  hBrush = CreateSolidBrush(m_crColor);
+        FillRect(hDC, &rect, hBrush);
+        DeleteObject(hBrush);
+    }
+}
+
 //-----------------------------------------------------------------
 // StarryBackground Constructor
 //-----------------------------------------------------------------

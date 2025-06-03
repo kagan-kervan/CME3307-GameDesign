@@ -21,6 +21,7 @@ protected:
   int       m_iWidth, m_iHeight;
   COLORREF  m_crColor;
   Bitmap*   m_pBitmap;
+  int       m_iScrollX, m_iScrollY;
 
 public:
   // Constructor(s)/Destructor
@@ -31,6 +32,7 @@ public:
   // General Methods
   virtual void  Update();
   virtual void  Draw(HDC hDC);
+  virtual void Draw(HDC hDC, int camX, int camY);
 
   // Accessor Methods
   int GetWidth()  { return m_iWidth; };

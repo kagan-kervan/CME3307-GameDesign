@@ -7,6 +7,7 @@
 // Include Files
 //-----------------------------------------------------------------
 #include "Sprite.h"
+#include <stdio.h>
 
 //-----------------------------------------------------------------
 // Sprite Constructor(s)/Destructor
@@ -188,4 +189,25 @@ void Sprite::Draw(HDC hDC)
       m_pBitmap->DrawPart(hDC, m_rcPosition.left, m_rcPosition.top,
         m_iCurFrame * GetWidth(), 0, GetWidth(), GetHeight(), TRUE);
   }
+}
+void Sprite::Draw(HDC hDC, int cameraX, int cameraY)
+{
+    // When drawing the sprite, subtract cameraX and cameraY from the sprite position
+    int drawX = m_rcPosition.left - cameraX;
+    int drawY = m_rcPosition.top - cameraY;
+    // Draw at (drawX, drawY)
+
+    printf("Sprite at world (%d, %d), draws at screen (%d, %d)\n",
+        m_rcPosition.left, m_rcPosition.top, drawX, drawY);
+
+    // Draw the sprite if it isn't hidden
+    if (m_pBitmap != NULL && !m_bHidden)
+    {
+        // Draw the appropriate frame, if necessary
+        if (m_iNumFrames == 1)
+            m_pBitmap->Draw(hDC, drawX, drawY, TRUE);
+        else
+            m_pBitmap->DrawPart(hDC, drawX, drawY,
+                m_iCurFrame * GetWidth(), 0, GetWidth(), GetHeight(), TRUE);
+    }
 }
