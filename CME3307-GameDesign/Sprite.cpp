@@ -197,8 +197,6 @@ void Sprite::Draw(HDC hDC, int cameraX, int cameraY)
     int drawY = m_rcPosition.top - cameraY;
     // Draw at (drawX, drawY)
 
-    printf("Sprite at world (%d, %d), draws at screen (%d, %d)\n",
-        m_rcPosition.left, m_rcPosition.top, drawX, drawY);
 
     // Draw the sprite if it isn't hidden
     if (m_pBitmap != NULL && !m_bHidden)

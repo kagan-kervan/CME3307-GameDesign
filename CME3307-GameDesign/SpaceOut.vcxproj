@@ -114,11 +114,36 @@
     <ClInclude Include="Sprite.h" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="bitmap1.bmp" />
+    <Image Include="Blobbo.bmp" />
+    <Image Include="BMissile.bmp" />
+    <Image Include="Car.bmp" />
+    <Image Include="Desert.bmp" />
+    <Image Include="GameOver.bmp" />
+    <Image Include="grid_bg.png" />
+    <Image Include="Jelly.bmp" />
+    <Image Include="JMissile.bmp" />
+    <Image Include="LgExplosion.bmp" />
+    <Image Include="Missile.bmp" />
+    <Image Include="SmCar.bmp" />
+    <Image Include="SmExplosion.bmp" />
     <Image Include="SpaceOut.ico" />
     <Image Include="SpaceOut_sm.ico" />
+    <Image Include="Timmy.bmp" />
+    <Image Include="TMissile.bmp" />
+    <Image Include="wall.bmp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SpaceOut.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Media Include="BMissile.wav" />
+    <Media Include="GameOver.wav" />
+    <Media Include="JMissile.wav" />
+    <Media Include="LgExplode.wav" />
+    <Media Include="Missile.wav" />
+    <Media Include="SmExplode.wav" />
+    <Media Include="TMissile.wav" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

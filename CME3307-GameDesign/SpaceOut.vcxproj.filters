@@ -67,10 +67,65 @@
     <Image Include="SpaceOut_sm.ico">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="bitmap1.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="wall.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Desert.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Car.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="SmCar.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Missile.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Blobbo.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="BMissile.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Jelly.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="JMissile.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Timmy.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="TMissile.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="SmExplosion.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="LgExplosion.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="GameOver.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="grid_bg.png" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SpaceOut.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Media Include="Missile.wav" />
+    <Media Include="BMissile.wav" />
+    <Media Include="JMissile.wav" />
+    <Media Include="TMissile.wav" />
+    <Media Include="SmExplode.wav" />
+    <Media Include="LgExplode.wav" />
+    <Media Include="GameOver.wav" />
   </ItemGroup>
 </Project>

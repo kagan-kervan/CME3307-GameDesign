@@ -30,7 +30,7 @@ IDB_TMISSILE          BITMAP       "TMissile.bmp"
 IDB_SMEXPLOSION       BITMAP       "SmExplosion.bmp"
 IDB_LGEXPLOSION       BITMAP       "LgExplosion.bmp"
 IDB_GAMEOVER          BITMAP       "GameOver.bmp"
-IDB_GRID			  PICTURE	   "grid_bg.png"
+IDB_WALL			  BITMAP       "wall.bmp"
 
 //-----------------------------------------------------------------
 // Wave Sounds

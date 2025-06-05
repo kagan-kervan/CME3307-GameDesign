@@ -26,6 +26,7 @@
 #define IDB_LGEXPLOSION       2011
 #define IDB_GAMEOVER          2012
 #define IDB_GRID			  2013
+#define IDB_WALL			  2014
 
 //-----------------------------------------------------------------
 // Wave Sounds                Range : 3000 - 3999

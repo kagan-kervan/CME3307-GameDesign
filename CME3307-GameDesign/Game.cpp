@@ -4,6 +4,9 @@
 
 #include "Game.h"
 
+std::vector<Tile> nonCollidableTiles; // Definition
+//Global map bounds for accessing whole map
+RECT globalBounds = { 0,0,2000,2000 };
 
 BOOL GameInitialize(HINSTANCE hInstance)
 {
@@ -21,8 +24,8 @@ BOOL GameInitialize(HINSTANCE hInstance)
     // Store the instance handle
     instance = hInstance;
 
-    AllocConsole();
-    freopen("CONOUT$", "w", stdout);
+    /*AllocConsole();
+    freopen("CONOUT$", "w", stdout);*/
 
     return TRUE;
 }
@@ -40,14 +43,17 @@ void GameStart(HWND hWindow)
 
     // Create and load the bitmaps
     HDC hDC = GetDC(hWindow);
-    // Create the starry background
-    backgroundBitmap = new Bitmap(hDC, R"(background.bmp)");
-    wallBitmap = new Bitmap(hDC, "wall.bmp");
+    Bitmap* grassBit = new Bitmap(hDC, "tile.bmp");
+    wallBitmap = new Bitmap(hDC,"wall.bmp");
+    charBitmap = new Bitmap(hDC, "player.bmp");
     background = new Background(window_X, window_Y, RGB(0, 0, 0));
     camera = new Camera(0, 0, window_X, window_Y);
     mazeGenerator = new MazeGenerator(20,20);
-    GenerateMaze();
-
+    GenerateMaze(grassBit);
+    charSprite = new Sprite(charBitmap, globalBounds, BA_STOP);
+    charSprite->SetPosition(1 * wallBitmap->GetWidth(), 1 * wallBitmap->GetHeight());
+    camera->SetPosition(charSprite->GetPosition().left, charSprite->GetPosition().top);
+    game_engine->AddSprite(charSprite);
 }
 
 void GameEnd()
@@ -83,9 +89,28 @@ void GamePaint(HDC hDC)
 {
     // Draw background with camera offset
     background->Draw(hDC, camera->x,camera->y);
+
+    CenterCameraOnSprite(charSprite);
+
+    // Draw all sprites that are visible in the camera's viewport
+    RECT camRect = { camera->x, camera->y, camera->x + camera->width, camera->y + camera->height };
+
+
+
+    // Draw all non-collidable tiles
+    for (const auto& tile : nonCollidableTiles) {
+        // Adjust for camera offset if needed
+        tile.bitmap->Draw(hDC, tile.x - camera->x, tile.y - camera->y, TRUE);
+    }
+
     // Draw all sprites with camera offset
-    for (auto* sprite : game_engine->GetSprites()) {
-        sprite->Draw(hDC, camera->x, camera->y);
+    for (Sprite* sprite : game_engine->GetSprites()) {
+        RECT pos = sprite->GetPosition();
+        int spriteWidth = sprite->GetBitmap()->GetWidth();
+        int spriteHeight = sprite->GetBitmap()->GetHeight();
+
+        RECT spriteRect = pos;
+        sprite->Draw(hDC, camera->x,camera->y);
     }
 }
 
@@ -102,12 +127,15 @@ void GameCycle()
     HDC   hDC = GetDC(hWindow);
 
     // Paint the game to the offscreen device context
+    // Center camera on sprite
+    CenterCameraOnSprite(charSprite);
+
     GamePaint(offscreenDC);
     GamePaint(hDC);
 
     // Blit the offscreen bitmap to the game screen
-    /*BitBlt(hDC, 0, 0, game_engine->GetWidth(), game_engine->GetHeight(),
-        offscreenDC, 0, 0, SRCCOPY);*/
+    BitBlt(hDC, 0, 0, game_engine->GetWidth(), game_engine->GetHeight(),
+        offscreenDC, 0, 0, SRCCOPY);
 
     // Cleanup
     ReleaseDC(hWindow, hDC);
@@ -115,15 +143,15 @@ void GameCycle()
 
 void HandleKeys()
 {
-    const int CAMERA_SPEED = 10;
-    if (GetAsyncKeyState(VK_LEFT) & 0x8000)   
-        camera->Move(-CAMERA_SPEED, 0);
+    const int CAMERA_SPEED = 25;
+    if (GetAsyncKeyState(VK_LEFT) & 0x8000)
+        charSprite->SetVelocity(CAMERA_SPEED, 0);
     if (GetAsyncKeyState(VK_RIGHT) & 0x8000)  
-        camera->Move(CAMERA_SPEED, 0);
+        charSprite->SetVelocity(-CAMERA_SPEED, 0);
     if (GetAsyncKeyState(VK_UP) & 0x8000)     
-        camera->Move(0, -CAMERA_SPEED);
-    if (GetAsyncKeyState(VK_DOWN) & 0x8000)   
-        camera->Move(0, CAMERA_SPEED);
+        charSprite->SetVelocity(0,CAMERA_SPEED);
+    if (GetAsyncKeyState(VK_DOWN) & 0x8000)
+        charSprite->SetVelocity(0, -CAMERA_SPEED);
 
 }
 
@@ -152,24 +180,48 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
 }
 
 
-void GenerateMaze() {
+void GenerateMaze(Bitmap* tileBit) {
     mazeGenerator->generateMaze();
     const std::vector<std::vector<int>>& mazeArray = mazeGenerator->getMaze();
 
     int tile_height = wallBitmap->GetHeight();
     int tile_width = wallBitmap->GetWidth();
-    RECT rcBounds = { 0, 0, window_X, window_Y };
+    RECT rcBounds = { 0, 0, 4000, 4000 }; // or based on maze size
 
     for (int y = 0; y < mazeArray.size(); ++y) {
         for (int x = 0; x < mazeArray[y].size(); ++x) {
+
+            int posX = x * tile_width;
+            int posY = y * tile_height;
             if (mazeArray[y][x] == -1) { // It's a wall
-                int posX = x * tile_width;
-                int posY = y * tile_height;
                 POINT pos = { posX, posY };
                 Sprite* wall = new Sprite(wallBitmap,rcBounds, BA_STOP);
                 wall->SetPosition(pos);
                 game_engine->AddSprite(wall);
             }
+            else {
+                AddNonCollidableTile(posX, posY, tileBit); // Instead of creating a Sprite
+            }
+            AddNonCollidableTile(posX, posY, tileBit); // Instead of creating a Sprite
         }
     }
 }
+
+void AddNonCollidableTile(int x, int y, Bitmap* bitmap) {
+    nonCollidableTiles.push_back({ x, y, bitmap });
+}
+
+void CenterCameraOnSprite(Sprite* sprite) {
+    RECT pos = sprite->GetPosition();
+    int spriteWidth = sprite->GetBitmap()->GetWidth();
+    int spriteHeight = sprite->GetBitmap()->GetHeight();
+
+    int centerX = pos.left + spriteWidth / 2;
+    int centerY = pos.top + spriteHeight / 2;
+
+    int camX = centerX - camera->width / 2;
+    int camY = centerY - camera->height / 2;
+
+    camera->SetPosition(camX, camY);
+}
+
