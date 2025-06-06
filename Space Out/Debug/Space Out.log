@@ -1,6 +1,12 @@
-﻿  Bitmap.cpp
+﻿  Background.cpp
+  Bitmap.cpp
+  Enemy.cpp
+  GameEngine.cpp
   Maze.cpp
+  Player.cpp
+  SpaceOut.cpp
+  Sprite.cpp
   Background.obj : /GL ile derlenmiş MSIL .netmodule veya modül bulundu; bağlantı /LTCG ile yeniden başlatılıyor; bağlayıcı performansını artırmak için bağlantı komut satırına /LTCG ekleyin
   Kod üretiliyor
   Kodun üretilmesi tamamlandı
-  Space Out.vcxproj -> C:\Users\HP\Desktop\Space-Out\Debug\Space Out.exe
+  Space Out.vcxproj -> C:\Users\HP\Documents\GitHub\CME3307-GameDesign\Debug\Space Out.exe
