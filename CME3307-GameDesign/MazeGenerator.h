@@ -1,15 +1,13 @@
-#pragma once
+﻿#pragma once
 #include <vector>
 #include <random>
-#include <stack>
 
 class MazeGenerator {
 private:
     int width, height;
-    std::vector<std::vector<int>> maze; // -1 for walls, 0 for paths
+    std::vector<std::vector<int>> maze; // Instance variable
     std::mt19937 rng;
 
-    // Directions: North, East, South, West
     const int dx[4] = { 0, 1, 0, -1 };
     const int dy[4] = { -1, 0, 1, 0 };
 
@@ -20,6 +18,11 @@ private:
 public:
     MazeGenerator(int width, int height);
     void generateMaze();
-    const std::vector<std::vector<int>>& getMaze() const;
     void printMaze() const;
+
+    // ✅ Non-static function to access instance maze
+    const std::vector<std::vector<int>>& GetMaze() const;
+
+    // ✅ Non-static IsWall function
+    bool IsWall(int x, int y) const;
 };

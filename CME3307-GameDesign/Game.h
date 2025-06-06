@@ -12,6 +12,8 @@
 #include "Background.h"
 #include  "MazeGenerator.h"
 #include "Camera.h"
+#include "Player.h"
+#include "Enemy.h"
 #include <vector>
 
 //Structures to be used
@@ -37,7 +39,14 @@ Background* background;
 Bitmap* wallBitmap;
 MazeGenerator* mazeGenerator;
 Sprite* wallSpriteList;
+Bitmap* _pWallBitmap;
+Bitmap* _pFloorBitmap;
+Bitmap* _pPlayerBitmap;
+Bitmap* _pEnemyBitmap;
+Bitmap* _pMissileBitmap; // Mermi için Player.cpp'de extern ile eriþiliyor
 int window_X, window_Y;
+int MAZE_WIDTH, MAZE_HEIGHT = 20;
+int TILE_SIZE;
 Camera* camera = camera;
 extern std::vector<Tile> nonCollidableTiles; // Add this line
 class Game {

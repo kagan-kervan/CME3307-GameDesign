@@ -13,8 +13,8 @@ BOOL GameInitialize(HINSTANCE hInstance)
     window_X = 1500;
     window_Y = 700;
     // Create the game engine
-    game_engine = new GameEngine(hInstance, TEXT("(Space Out)"),
-        TEXT("(Space Out)"), IDI_SPACEOUT, IDI_SPACEOUT_SM, window_X, window_Y);
+    game_engine = new GameEngine(hInstance, TEXT("Maze Game"), TEXT("Maze Game"),
+        IDI_SPACEOUT, IDI_SPACEOUT_SM, window_X, window_Y); // Pencere boyutunu büyüttük
     if (game_engine == NULL)
         return FALSE;
 
@@ -44,16 +44,33 @@ void GameStart(HWND hWindow)
     // Create and load the bitmaps
     HDC hDC = GetDC(hWindow);
     Bitmap* grassBit = new Bitmap(hDC, "tile.bmp");
-    wallBitmap = new Bitmap(hDC,"wall.bmp");
+    wallBitmap = new Bitmap(hDC, "wall.bmp");
+    TILE_SIZE = wallBitmap->GetHeight();
     charBitmap = new Bitmap(hDC, "player.bmp");
     background = new Background(window_X, window_Y, RGB(0, 0, 0));
     camera = new Camera(0, 0, window_X, window_Y);
-    mazeGenerator = new MazeGenerator(20,20);
+    mazeGenerator = new MazeGenerator(20, 20);
     GenerateMaze(grassBit);
-    charSprite = new Sprite(charBitmap, globalBounds, BA_STOP);
-    charSprite->SetPosition(1 * wallBitmap->GetWidth(), 1 * wallBitmap->GetHeight());
+    charSprite = new Player(charBitmap, mazeGenerator);
+    charSprite->SetPosition(12 * TILE_SIZE,5 * TILE_SIZE);
     camera->SetPosition(charSprite->GetPosition().left, charSprite->GetPosition().top);
     game_engine->AddSprite(charSprite);
+    _pEnemyBitmap = new Bitmap(hDC, "enemy.bmp");
+
+
+    // Birkaç düþman oluþtur ve ekle
+    for (int i = 0; i < 1; i++)
+    {
+        Enemy* pEnemy = new Enemy(_pEnemyBitmap, mazeGenerator, charSprite);
+        // Düþmanýn duvarda baþlamadýðýndan emin ol
+        int ex, ey;
+        do {
+            ex = (rand() % (MAZE_WIDTH - 2) + 1);
+            ey = (rand() % (MAZE_HEIGHT - 2) + 1);
+        } while (mazeGenerator->IsWall(ex, ey));
+        pEnemy->SetPosition(ex, ey);
+        game_engine->AddSprite(pEnemy);
+    }
 }
 
 void GameEnd()
@@ -88,7 +105,7 @@ void GameDeactivate(HWND hWindow)
 void GamePaint(HDC hDC)
 {
     // Draw background with camera offset
-    background->Draw(hDC, camera->x,camera->y);
+    background->Draw(hDC, camera->x, camera->y);
 
     CenterCameraOnSprite(charSprite);
 
@@ -110,7 +127,7 @@ void GamePaint(HDC hDC)
         int spriteHeight = sprite->GetBitmap()->GetHeight();
 
         RECT spriteRect = pos;
-        sprite->Draw(hDC, camera->x,camera->y);
+        sprite->Draw(hDC, camera->x, camera->y);
     }
 }
 
@@ -131,8 +148,6 @@ void GameCycle()
     CenterCameraOnSprite(charSprite);
 
     GamePaint(offscreenDC);
-    GamePaint(hDC);
-
     // Blit the offscreen bitmap to the game screen
     BitBlt(hDC, 0, 0, game_engine->GetWidth(), game_engine->GetHeight(),
         offscreenDC, 0, 0, SRCCOPY);
@@ -146,10 +161,10 @@ void HandleKeys()
     const int CAMERA_SPEED = 25;
     if (GetAsyncKeyState(VK_LEFT) & 0x8000)
         charSprite->SetVelocity(CAMERA_SPEED, 0);
-    if (GetAsyncKeyState(VK_RIGHT) & 0x8000)  
+    if (GetAsyncKeyState(VK_RIGHT) & 0x8000)
         charSprite->SetVelocity(-CAMERA_SPEED, 0);
-    if (GetAsyncKeyState(VK_UP) & 0x8000)     
-        charSprite->SetVelocity(0,CAMERA_SPEED);
+    if (GetAsyncKeyState(VK_UP) & 0x8000)
+        charSprite->SetVelocity(0, CAMERA_SPEED);
     if (GetAsyncKeyState(VK_DOWN) & 0x8000)
         charSprite->SetVelocity(0, -CAMERA_SPEED);
 
@@ -182,7 +197,7 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
 
 void GenerateMaze(Bitmap* tileBit) {
     mazeGenerator->generateMaze();
-    const std::vector<std::vector<int>>& mazeArray = mazeGenerator->getMaze();
+    const std::vector<std::vector<int>>& mazeArray = mazeGenerator->GetMaze();
 
     int tile_height = wallBitmap->GetHeight();
     int tile_width = wallBitmap->GetWidth();
@@ -195,7 +210,7 @@ void GenerateMaze(Bitmap* tileBit) {
             int posY = y * tile_height;
             if (mazeArray[y][x] == -1) { // It's a wall
                 POINT pos = { posX, posY };
-                Sprite* wall = new Sprite(wallBitmap,rcBounds, BA_STOP);
+                Sprite* wall = new Sprite(wallBitmap, rcBounds, BA_STOP);
                 wall->SetPosition(pos);
                 game_engine->AddSprite(wall);
             }

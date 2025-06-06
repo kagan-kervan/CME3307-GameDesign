@@ -1,6 +1,8 @@
 ﻿#include "MazeGenerator.h"
 #include <iostream>
 #include <algorithm>
+#include <stack>
+
 
 MazeGenerator::MazeGenerator(int width, int height)
     : width(width), height(height) {
@@ -15,10 +17,9 @@ MazeGenerator::MazeGenerator(int width, int height)
 }
 
 void MazeGenerator::generateMaze() {
-    // Start from position (1,1) - first cell position
     std::stack<std::pair<int, int>> stack;
 
-    // Mark starting cell as path
+    // Start from position (1,1)
     maze[1][1] = 0;
     stack.push({ 1, 1 });
 
@@ -27,27 +28,41 @@ void MazeGenerator::generateMaze() {
         int currentX = current.first;
         int currentY = current.second;
 
-        // Get unvisited neighbors (2 cells away to account for walls)
         std::vector<int> neighbors = getUnvisitedNeighbors(currentX, currentY);
 
         if (!neighbors.empty()) {
-            // Choose random neighbor
             std::uniform_int_distribution<int> dist(0, neighbors.size() - 1);
             int direction = neighbors[dist(rng)];
 
-            // Calculate neighbor position (2 cells away)
             int nextX = currentX + dx[direction] * 2;
             int nextY = currentY + dy[direction] * 2;
 
-            // Carve passage to neighbor
             carvePassage(currentX, currentY, nextX, nextY);
-
-            // Add neighbor to stack
             stack.push({ nextX, nextY });
         }
         else {
-            // Backtrack
-            stack.pop();
+            // Occasionally skip popping to make maze less rigid
+            std::uniform_int_distribution<int> chance(0, 4);
+            if (chance(rng) != 0) {
+                stack.pop();
+            }
+        }
+
+        // Occasionally carve random extra passages to create loops
+        std::uniform_int_distribution<int> loopChance(0, 20); // 5% chance
+        if (loopChance(rng) == 0) {
+            int x = 1 + 2 * (rng() % width);
+            int y = 1 + 2 * (rng() % height);
+
+            std::vector<int> loopDirs = getUnvisitedNeighbors(x, y);
+            if (!loopDirs.empty()) {
+                int dir = loopDirs[rng() % loopDirs.size()];
+                int nx = x + dx[dir] * 2;
+                int ny = y + dy[dir] * 2;
+                if (isValid(nx, ny)) {
+                    carvePassage(x, y, nx, ny);
+                }
+            }
         }
     }
 }
@@ -81,9 +96,6 @@ void MazeGenerator::carvePassage(int x1, int y1, int x2, int y2) {
     maze[wallY][wallX] = 0;
 }
 
-const std::vector<std::vector<int>>& MazeGenerator::getMaze() const {
-    return maze;
-}
 
 void MazeGenerator::printMaze() const {
     for (const auto& row : maze) {
@@ -94,16 +106,14 @@ void MazeGenerator::printMaze() const {
     }
 }
 
-// Example usage
-int main() {
-    MazeGenerator maze(2, 2);  // This will create a 51x25 actual maze array
-    maze.generateMaze();
-    maze.printMaze();
+// Getter for maze
+const std::vector<std::vector<int>>& MazeGenerator::GetMaze() const {
+    return maze;
+}
 
-    // Access the maze array
-    const auto& mazeArray = maze.getMaze();
-    std::cout << "\nMaze dimensions: " << mazeArray[0].size() << "x" << mazeArray.size() << std::endl;
-    std::cout << "Walls are -1, paths are 0" << std::endl;
-
-    return 0;
+// Checks if a cell is a wall
+bool MazeGenerator::IsWall(int x, int y) const {
+    if (x < 0 || y < 0 || x >= width || y >= height)
+        return true;
+    return maze[y][x] == -1;
 }
