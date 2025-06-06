@@ -8,7 +8,7 @@ class Player : public Sprite
 {
 public:
     Player(Bitmap* pBitmap, MazeGenerator* pMaze);
-
+    int TILE_SIZE = 50;
     virtual SPRITEACTION Update();
     void HandleInput(); // Klavye girdilerini burada iþleyeceðiz
 

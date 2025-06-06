@@ -14,6 +14,7 @@ public:
 private:
     void ChasePlayer(); // Oyuncuyu takip etme mantýðý
 
+    int TILE_SIZE = 50;
     MazeGenerator* m_pMaze;
     Sprite* m_pPlayer; // Hedef oyuncu
     int m_iSpeed;

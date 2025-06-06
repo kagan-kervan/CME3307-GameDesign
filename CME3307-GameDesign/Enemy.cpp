@@ -2,10 +2,11 @@
 #include "Enemy.h"
 #include <cmath> // abs() fonksiyonu için
 
+
 Enemy::Enemy(Bitmap* pBitmap, MazeGenerator* pMaze, Sprite* pPlayer)
     : Sprite(pBitmap), m_pMaze(pMaze), m_pPlayer(pPlayer)
 {
-    m_iSpeed = 2; // Düþman hýzý
+    m_iSpeed = 16; // Düþman hýzý
     m_iTick = 0;
 }
 
@@ -47,8 +48,8 @@ void Enemy::ChasePlayer()
     // Gitmek istediðimiz yön bir duvarsa, diðer yönü dene.
     RECT currentPos = GetPosition();
     //TO-DO: Add tile size as global
-    int tilePosX = (currentPos.left + moveX) / 50;
-    int tilePosY = (currentPos.top + moveY) / 50;
+    int tilePosX = (currentPos.left + moveX) / TILE_SIZE;
+    int tilePosY = (currentPos.top + moveY) / TILE_SIZE;
     if (m_pMaze->IsWall(tilePosX, tilePosY))
     {
         // Asýl yön týkalý, alternatifi dene

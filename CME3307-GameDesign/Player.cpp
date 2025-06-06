@@ -42,10 +42,10 @@ void Player::HandleInput()
 
     RECT rcNewPos = { newX, newY, newX + GetWidth(), newY + GetHeight() };
 
-    if (!m_pMaze->IsWall(rcNewPos.left, rcNewPos.top) &&
-        !m_pMaze->IsWall(rcNewPos.right - 1, rcNewPos.top) &&
-        !m_pMaze->IsWall(rcNewPos.left, rcNewPos.bottom - 1) &&
-        !m_pMaze->IsWall(rcNewPos.right - 1, rcNewPos.bottom - 1))
+    if (!m_pMaze->IsWall(rcNewPos.left/TILE_SIZE, rcNewPos.top/TILE_SIZE) &&
+        !m_pMaze->IsWall((rcNewPos.right - 1)/TILE_SIZE, rcNewPos.top/TILE_SIZE) &&
+        !m_pMaze->IsWall(rcNewPos.left / TILE_SIZE, (rcNewPos.bottom - 1) / TILE_SIZE) &&
+        !m_pMaze->IsWall((rcNewPos.right - 1) / TILE_SIZE, (rcNewPos.bottom - 1) / TILE_SIZE))
     {
         SetPosition(newX, newY);
     }

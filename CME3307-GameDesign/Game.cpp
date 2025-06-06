@@ -49,7 +49,7 @@ void GameStart(HWND hWindow)
     charBitmap = new Bitmap(hDC, "player.bmp");
     background = new Background(window_X, window_Y, RGB(0, 0, 0));
     camera = new Camera(0, 0, window_X, window_Y);
-    mazeGenerator = new MazeGenerator(20, 20);
+    mazeGenerator = new MazeGenerator(12, 12);
     GenerateMaze(grassBit);
     charSprite = new Player(charBitmap, mazeGenerator);
     charSprite->SetPosition(12 * TILE_SIZE,5 * TILE_SIZE);
@@ -68,7 +68,7 @@ void GameStart(HWND hWindow)
             ex = (rand() % (MAZE_WIDTH - 2) + 1);
             ey = (rand() % (MAZE_HEIGHT - 2) + 1);
         } while (mazeGenerator->IsWall(ex, ey));
-        pEnemy->SetPosition(ex, ey);
+        pEnemy->SetPosition(ex*TILE_SIZE, ey*TILE_SIZE);
         game_engine->AddSprite(pEnemy);
     }
 }
@@ -157,7 +157,7 @@ void GameCycle()
 }
 
 void HandleKeys()
-{
+{/*
     const int CAMERA_SPEED = 25;
     if (GetAsyncKeyState(VK_LEFT) & 0x8000)
         charSprite->SetVelocity(CAMERA_SPEED, 0);
@@ -166,7 +166,7 @@ void HandleKeys()
     if (GetAsyncKeyState(VK_UP) & 0x8000)
         charSprite->SetVelocity(0, CAMERA_SPEED);
     if (GetAsyncKeyState(VK_DOWN) & 0x8000)
-        charSprite->SetVelocity(0, -CAMERA_SPEED);
+        charSprite->SetVelocity(0, -CAMERA_SPEED);*/
 
 }
 
