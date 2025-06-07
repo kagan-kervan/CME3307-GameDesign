@@ -54,10 +54,10 @@ void GameStart(HWND hWindow)
 
     //Create player
     charSprite = new Player(charBitmap, mazeGenerator);
-    charSprite->SetPosition(12 * TILE_SIZE,5 * TILE_SIZE);
+    charSprite->SetPosition(12 * TILE_SIZE+5,5 * TILE_SIZE+5);
     camera->SetPosition(charSprite->GetPosition().left, charSprite->GetPosition().top);
     game_engine->AddSprite(charSprite);
-    mazeGenerator->setValue(charSprite->GetPosition().top / TILE_SIZE, charSprite->GetPosition().left / TILE_SIZE, 1);
+    mazeGenerator->setValue(charSprite->GetPosition().top / TILE_SIZE - 5, charSprite->GetPosition().left / TILE_SIZE - 5, 1);
 
     _pEnemyBitmap = new Bitmap(hDC, "enemy.bmp");
 

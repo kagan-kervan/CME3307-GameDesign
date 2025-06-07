@@ -8,7 +8,7 @@ extern Bitmap* _pMissileBitmap;
 Player::Player(Bitmap* pBitmap, MazeGenerator* pMaze)
     : Sprite(pBitmap), m_pMaze(pMaze)
 {
-    m_iSpeed = 4;
+    m_iSpeed = 50;
 }
 
 SPRITEACTION Player::Update()

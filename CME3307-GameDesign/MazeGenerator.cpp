@@ -166,7 +166,7 @@ const std::vector<std::vector<int>>& MazeGenerator::GetMaze() const {
 bool MazeGenerator::IsWall(int x, int y) const {
     if (x < 0 || y < 0 || x >= 2*width || y >= 2*height)
         return true;
-    return maze[y][x] == -1;
+    return maze[x][y] == -1;
 }
 
 void MazeGenerator::setValue(int x, int y, int value) {
