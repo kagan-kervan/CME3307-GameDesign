@@ -51,10 +51,14 @@ void GameStart(HWND hWindow)
     camera = new Camera(0, 0, window_X, window_Y);
     mazeGenerator = new MazeGenerator(12, 12);
     GenerateMaze(grassBit);
+
+    //Create player
     charSprite = new Player(charBitmap, mazeGenerator);
     charSprite->SetPosition(12 * TILE_SIZE,5 * TILE_SIZE);
     camera->SetPosition(charSprite->GetPosition().left, charSprite->GetPosition().top);
     game_engine->AddSprite(charSprite);
+    mazeGenerator->setValue(charSprite->GetPosition().top / TILE_SIZE, charSprite->GetPosition().left / TILE_SIZE, 1);
+
     _pEnemyBitmap = new Bitmap(hDC, "enemy.bmp");
 
 
@@ -68,8 +72,9 @@ void GameStart(HWND hWindow)
             ex = (rand() % (MAZE_WIDTH - 2) + 1);
             ey = (rand() % (MAZE_HEIGHT - 2) + 1);
         } while (mazeGenerator->IsWall(ex, ey));
-        pEnemy->SetPosition(ex*TILE_SIZE, ey*TILE_SIZE);
+        pEnemy->SetPosition(ex*TILE_SIZE-5, ey*TILE_SIZE-5);
         game_engine->AddSprite(pEnemy);
+        mazeGenerator->setValue(ex, ey, 2);
     }
 }
 

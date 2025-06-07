@@ -23,6 +23,8 @@ public:
     // ✅ Non-static function to access instance maze
     const std::vector<std::vector<int>>& GetMaze() const;
 
+    void setValue(int x,int y,int value);
+
     // ✅ Non-static IsWall function
     bool IsWall(int x, int y) const;
 };

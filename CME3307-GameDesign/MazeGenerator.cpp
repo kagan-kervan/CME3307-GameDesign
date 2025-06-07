@@ -168,3 +168,9 @@ bool MazeGenerator::IsWall(int x, int y) const {
         return true;
     return maze[y][x] == -1;
 }
+
+void MazeGenerator::setValue(int x, int y, int value) {
+    if (x >= 0 && x < maze.size() && y >= 0 && y < maze[x].size()) {
+        maze[x][y] = value;
+    }
+}
