@@ -14,6 +14,7 @@
 #include "Camera.h"
 #include "Player.h"
 #include "Enemy.h"
+#include "FOVBackground.h"
 #include <vector>
 
 //Structures to be used
@@ -44,6 +45,7 @@ Bitmap* _pFloorBitmap;
 Bitmap* _pPlayerBitmap;
 Bitmap* _pEnemyBitmap;
 Bitmap* _pMissileBitmap; // Mermi için Player.cpp'de extern ile eriþiliyor
+FOVBackground* fovEffect;
 int window_X, window_Y;
 int MAZE_WIDTH, MAZE_HEIGHT = 20;
 int TILE_SIZE;

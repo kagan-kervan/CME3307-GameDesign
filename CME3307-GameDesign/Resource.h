@@ -27,6 +27,8 @@
 #define IDB_GAMEOVER          2012
 #define IDB_GRID			  2013
 #define IDB_WALL			  2014
+#define IDB_BITMAP3			  2015
+#define IDB_ENEMY			  2016
 
 //-----------------------------------------------------------------
 // Wave Sounds                Range : 3000 - 3999

@@ -8,6 +8,8 @@ Enemy::Enemy(Bitmap* pBitmap, MazeGenerator* pMaze, Sprite* pPlayer)
 {
     m_iSpeed = 16; // Düþman hýzý
     m_iTick = 0;
+    Sprite::SetNumFrames(4);
+    Sprite::SetFrameDelay(8);
 }
 
 SPRITEACTION Enemy::Update()

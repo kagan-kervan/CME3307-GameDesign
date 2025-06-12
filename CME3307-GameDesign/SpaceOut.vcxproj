@@ -99,6 +99,7 @@
     <ClCompile Include="Background.cpp" />
     <ClCompile Include="Bitmap.cpp" />
     <ClCompile Include="Enemy.cpp" />
+    <ClCompile Include="FOVBackground.cpp" />
     <ClCompile Include="GameEngine.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="MazeGenerator.cpp" />
@@ -110,6 +111,7 @@
     <ClInclude Include="Bitmap.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Enemy.h" />
+    <ClInclude Include="FOVBackground.h" />
     <ClInclude Include="GameEngine.h" />
     <ClInclude Include="MazeGenerator.h" />
     <ClInclude Include="Player.h" />
@@ -119,12 +121,15 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="bitmap1.bmp" />
+    <Image Include="bitmap2.bmp" />
     <Image Include="Blobbo.bmp" />
     <Image Include="BMissile.bmp" />
     <Image Include="Car.bmp" />
     <Image Include="Desert.bmp" />
     <Image Include="GameOver.bmp" />
     <Image Include="grid_bg.png" />
+    <Image Include="idle(1).bmp" />
+    <Image Include="idle.bmp" />
     <Image Include="Jelly.bmp" />
     <Image Include="JMissile.bmp" />
     <Image Include="LgExplosion.bmp" />

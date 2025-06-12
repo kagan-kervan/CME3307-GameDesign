@@ -46,12 +46,11 @@ void GameStart(HWND hWindow)
     Bitmap* grassBit = new Bitmap(hDC, "tile.bmp");
     wallBitmap = new Bitmap(hDC, "wall.bmp");
     TILE_SIZE = wallBitmap->GetHeight();
-    charBitmap = new Bitmap(hDC, "player.bmp");
+    charBitmap = new Bitmap(hDC, IDB_BITMAP3,instance);
     background = new Background(window_X, window_Y, RGB(0, 0, 0));
     camera = new Camera(0, 0, window_X, window_Y);
     mazeGenerator = new MazeGenerator(12, 12);
     GenerateMaze(grassBit);
-
     //Create player
     charSprite = new Player(charBitmap, mazeGenerator);
     charSprite->SetPosition(12 * TILE_SIZE+5,5 * TILE_SIZE+5);
@@ -59,7 +58,8 @@ void GameStart(HWND hWindow)
     game_engine->AddSprite(charSprite);
     mazeGenerator->setValue(charSprite->GetPosition().top / TILE_SIZE - 5, charSprite->GetPosition().left / TILE_SIZE - 5, 1);
 
-    _pEnemyBitmap = new Bitmap(hDC, "enemy.bmp");
+    fovEffect = new FOVBackground(charSprite, 90, 150);
+    _pEnemyBitmap = new Bitmap(hDC, IDB_ENEMY,instance);
 
 
     // Birkaç düþman oluþtur ve ekle
@@ -134,6 +134,7 @@ void GamePaint(HDC hDC)
         RECT spriteRect = pos;
         sprite->Draw(hDC, camera->x, camera->y);
     }
+    fovEffect->Draw(hDC,camera->x,camera->y);
 }
 
 void GameCycle()
@@ -143,6 +144,8 @@ void GameCycle()
 
     // Update the sprites
     game_engine->UpdateSprites();
+
+    fovEffect->Update();
 
     // Obtain a device context for repainting the game
     HWND  hWindow = game_engine->GetWindow();
@@ -187,7 +190,8 @@ void MouseButtonUp(int x, int y, BOOL bLeft)
 
 void MouseMove(int x, int y)
 {
-
+    if (fovEffect)
+        fovEffect->UpdateMousePos(x, y);
 }
 
 void HandleJoystick(JOYSTATE jsJoystickState) {
