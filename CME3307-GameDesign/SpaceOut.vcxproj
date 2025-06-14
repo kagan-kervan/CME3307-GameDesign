@@ -103,6 +103,7 @@
     <ClCompile Include="GameEngine.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="MazeGenerator.cpp" />
+    <ClCompile Include="Missile.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="Sprite.cpp" />
   </ItemGroup>
@@ -114,6 +115,7 @@
     <ClInclude Include="FOVBackground.h" />
     <ClInclude Include="GameEngine.h" />
     <ClInclude Include="MazeGenerator.h" />
+    <ClInclude Include="Missile.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="Game.h" />

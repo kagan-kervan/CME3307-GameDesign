@@ -1,4 +1,4 @@
-//-----------------------------------------------------------------
+﻿//-----------------------------------------------------------------
 // Sprite Object
 // C++ Source - Sprite.cpp
 //-----------------------------------------------------------------
@@ -12,63 +12,72 @@
 //-----------------------------------------------------------------
 // Sprite Constructor(s)/Destructor
 //-----------------------------------------------------------------
-Sprite::Sprite(Bitmap* pBitmap)
+Sprite::Sprite(Bitmap* pBitmap, SpriteType type)
 {
-  // Initialize the member variables
-  m_pBitmap = pBitmap;
-  m_iNumFrames = 1;
-  m_iCurFrame = m_iFrameDelay = m_iFrameTrigger = 0;
-  SetRect(&m_rcPosition, 0, 0, pBitmap->GetWidth(), pBitmap->GetHeight());
-  CalcCollisionRect();
-  m_ptVelocity.x = m_ptVelocity.y = 0;
-  m_iZOrder = 0;
-  SetRect(&m_rcBounds, 0, 0, 640, 480);
-  m_baBoundsAction = BA_STOP;
-  m_bHidden = FALSE;
-  m_bDying = FALSE;
-  m_bOneCycle = FALSE;
+    // Initialize the member variables
+    m_eSpriteType = type; // Tipi ayarla
+    m_pBitmap = pBitmap;
+    m_iNumFrames = 1;
+    m_iCurFrame = m_iFrameDelay = m_iFrameTrigger = 0;
+    SetRect(&m_rcPosition, 0, 0, pBitmap->GetWidth(), pBitmap->GetHeight());
+    CalcCollisionRect();
+    m_ptVelocity.x = m_ptVelocity.y = 0;
+    m_iZOrder = 0;
+    SetRect(&m_rcBounds, 0, 0, 640, 480);
+    m_baBoundsAction = BA_STOP;
+    m_bHidden = FALSE;
+    m_bDying = FALSE;
+    m_bOneCycle = FALSE;
 }
 
-Sprite::Sprite(Bitmap* pBitmap, RECT& rcBounds, BOUNDSACTION baBoundsAction)
+Sprite::Sprite(Bitmap* pBitmap, RECT& rcBounds, BOUNDSACTION baBoundsAction, SpriteType type)
 {
-  // Calculate a random position
-  int iXPos = rand() % (rcBounds.right - rcBounds.left);
-  int iYPos = rand() % (rcBounds.bottom - rcBounds.top);
+    // Calculate a random position
+    int iXPos = rand() % (rcBounds.right - rcBounds.left);
+    int iYPos = rand() % (rcBounds.bottom - rcBounds.top);
 
-  // Initialize the member variables
-  m_pBitmap = pBitmap;
-  m_iNumFrames = 1;
-  m_iCurFrame = m_iFrameDelay = m_iFrameTrigger = 0;
-  SetRect(&m_rcPosition, iXPos, iYPos, iXPos + pBitmap->GetWidth(),
-    iYPos + pBitmap->GetHeight());
-  CalcCollisionRect();
-  m_ptVelocity.x = m_ptVelocity.y = 0;
-  m_iZOrder = 0;
-  CopyRect(&m_rcBounds, &rcBounds);
-  m_baBoundsAction = baBoundsAction;
-  m_bHidden = FALSE;
-  m_bDying = FALSE;
-  m_bOneCycle = FALSE;
+    // Initialize the member variables
+    m_eSpriteType = type; // Tipi ayarla
+    m_pBitmap = pBitmap;
+    m_iNumFrames = 1;
+    m_iCurFrame = m_iFrameDelay = m_iFrameTrigger = 0;
+    SetRect(&m_rcPosition, iXPos, iYPos, iXPos + pBitmap->GetWidth(),
+        iYPos + pBitmap->GetHeight());
+    CalcCollisionRect();
+    m_ptVelocity.x = m_ptVelocity.y = 0;
+    m_iZOrder = 0;
+    CopyRect(&m_rcBounds, &rcBounds);
+    m_baBoundsAction = baBoundsAction;
+    m_bHidden = FALSE;
+    m_bDying = FALSE;
+    m_bOneCycle = FALSE;
 }
 
 Sprite::Sprite(Bitmap* pBitmap, POINT ptPosition, POINT ptVelocity, int iZOrder,
-    RECT& rcBounds, BOUNDSACTION baBoundsAction)
+    RECT& rcBounds, BOUNDSACTION baBoundsAction, SpriteType type)
 {
-  // Initialize the member variables
-  m_pBitmap = pBitmap;
-  m_iNumFrames = 1;
-  m_iCurFrame = m_iFrameDelay = m_iFrameTrigger = 0;
-  SetRect(&m_rcPosition, ptPosition.x, ptPosition.y, pBitmap->GetWidth(),
-    pBitmap->GetHeight());
-  CalcCollisionRect();
-  m_ptVelocity = ptPosition;
-  m_iZOrder = iZOrder;
-  CopyRect(&m_rcBounds, &rcBounds);
-  m_baBoundsAction = baBoundsAction;
-  m_bHidden = FALSE;
-  m_bDying = FALSE;
-  m_bOneCycle = FALSE;
+    // Initialize the member variables
+    m_eSpriteType = type; // Tipi ayarla
+    m_pBitmap = pBitmap;
+    m_iNumFrames = 1;
+    m_iCurFrame = m_iFrameDelay = m_iFrameTrigger = 0;
+
+    // DÜZELTME 1: Konum (m_rcPosition) doðru þekilde ayarlandý.
+    SetRect(&m_rcPosition, ptPosition.x, ptPosition.y,
+        ptPosition.x + pBitmap->GetWidth(), ptPosition.y + pBitmap->GetHeight());
+    CalcCollisionRect();
+
+    // DÜZELTME 2: Hýz (m_ptVelocity) doðru parametreden (ptVelocity) ayarlandý.
+    m_ptVelocity = ptVelocity;
+
+    m_iZOrder = iZOrder;
+    CopyRect(&m_rcBounds, &rcBounds);
+    m_baBoundsAction = baBoundsAction;
+    m_bHidden = FALSE;
+    m_bDying = FALSE;
+    m_bOneCycle = FALSE;
 }
+
 
 Sprite::~Sprite()
 {

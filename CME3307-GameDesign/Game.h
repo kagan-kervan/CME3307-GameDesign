@@ -46,6 +46,7 @@ extern Bitmap* floorBitmap; // Assuming you have a specific floor bitmap
 extern Bitmap* keyBitmap;
 extern Bitmap* endPointBitmap;
 extern Bitmap* secondWeaponBitmap;
+extern Bitmap* _pPlayerMissileBitmap;
 
 extern bool isLevelFinished;
 

@@ -38,7 +38,7 @@ namespace Pathfinder {
 // HAREKET HATASI DÜZELTÝLDÝ: Kurucu metod artýk base class'ý doðru harita sýnýrlarýyla çaðýrýyor.
 Enemy::Enemy(Bitmap* pBitmap, RECT& rcBounds, BOUNDSACTION baBoundsAction,
     MazeGenerator* pMaze, Sprite* pPlayer, EnemyType type)
-    : Sprite(pBitmap, rcBounds, baBoundsAction), m_pMaze(pMaze), m_pPlayer(pPlayer), m_type(type)
+    : Sprite(pBitmap, rcBounds, baBoundsAction, SPRITE_TYPE_ENEMY), m_pMaze(pMaze), m_pPlayer(pPlayer), m_type(type)
 {
     m_state = AIState::IDLE;
     m_pathIndex = 0;
@@ -198,7 +198,7 @@ void Enemy::AttackPlayer()
     float length = sqrt(dirX * dirX + dirY * dirY);
     if (length > 0) { dirX /= length; dirY /= length; }
     RECT rcBounds = { 0, 0, 50 * (25 * 2 + 1), 50 * (25 * 2 + 1) }; // Updated bounds
-    Sprite* pMissile = new Sprite(_pEnemyMissileBitmap, rcBounds, BA_DIE);
+    Sprite* pMissile = new Sprite(_pEnemyMissileBitmap, rcBounds, BA_DIE,SPRITE_TYPE_ENEMY_MISSILE);
     pMissile->SetPosition((int)enemyCenterX - pMissile->GetWidth() / 2, (int)enemyCenterY - pMissile->GetHeight() / 2);
     int missileSpeed = 8;
     pMissile->SetVelocity(static_cast<int>(dirX * missileSpeed), static_cast<int>(dirY * missileSpeed));

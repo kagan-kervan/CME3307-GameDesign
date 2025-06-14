@@ -1,4 +1,4 @@
-//-----------------------------------------------------------------
+﻿//-----------------------------------------------------------------
 // Sprite Object
 // C++ Header - Sprite.h
 //-----------------------------------------------------------------
@@ -25,6 +25,16 @@ const BOUNDSACTION  BA_STOP   = 0,
                     BA_BOUNCE = 2,
                     BA_DIE    = 3;
 
+// YENÝ: Sprite tiplerini tanýmlýyoruz
+enum SpriteType {
+    SPRITE_TYPE_GENERIC,
+    SPRITE_TYPE_PLAYER,
+    SPRITE_TYPE_PLAYER_MISSILE,
+    SPRITE_TYPE_ENEMY,
+    SPRITE_TYPE_ENEMY_MISSILE,
+    SPRITE_TYPE_WALL
+};
+
 //-----------------------------------------------------------------
 // Sprite Class
 //-----------------------------------------------------------------
@@ -32,6 +42,7 @@ class Sprite
 {
 protected:
   // Member Variables
+  SpriteType    m_eSpriteType;  // YENÝ: Her sprite'ýn bir tipi olacak
   Bitmap*       m_pBitmap;
   int           m_iNumFrames, m_iCurFrame;
   int           m_iFrameDelay, m_iFrameTrigger;
@@ -50,13 +61,13 @@ protected:
   virtual void  CalcCollisionRect();
 
 public:
-  // Constructor(s)/Destructor
-  Sprite(Bitmap* pBitmap);
-  Sprite(Bitmap* pBitmap, RECT& rcBounds,
-    BOUNDSACTION baBoundsAction = BA_STOP);
-  Sprite(Bitmap* pBitmap, POINT ptPosition, POINT ptVelocity, int iZOrder,
-    RECT& rcBounds, BOUNDSACTION baBoundsAction = BA_STOP);
-  virtual ~Sprite();
+    // Constructor(s)/Destructor - TÝP parametresi eklendi
+    Sprite(Bitmap* pBitmap, SpriteType type = SPRITE_TYPE_GENERIC);
+    Sprite(Bitmap* pBitmap, RECT& rcBounds,
+        BOUNDSACTION baBoundsAction = BA_STOP, SpriteType type = SPRITE_TYPE_GENERIC);
+    Sprite(Bitmap* pBitmap, POINT ptPosition, POINT ptVelocity, int iZOrder,
+        RECT& rcBounds, BOUNDSACTION baBoundsAction = BA_STOP, SpriteType type = SPRITE_TYPE_GENERIC);
+    virtual ~Sprite();
 
   // General Methods
   virtual SPRITEACTION  Update();
@@ -68,6 +79,7 @@ public:
   void                  Kill()      { m_bDying = TRUE; };
 
   // Accessor Methods
+  SpriteType GetType() { return m_eSpriteType; }; // YENÝ: Tipi döndüren metot
   Bitmap* GetBitmap()               { return m_pBitmap; };
   void    SetNumFrames(int iNumFrames, BOOL bOneCycle = FALSE);
   void    SetFrameDelay(int iFrameDelay) { m_iFrameDelay = iFrameDelay; };
