@@ -1,9 +1,7 @@
-//
-// Created by ahmet on 3.06.2025.
-//
-
+// Game.h
 #ifndef GAME_H
 #define GAME_H
+#pragma once
 #include <windows.h>
 #include "Resource.h"
 #include "GameEngine.h"
@@ -41,31 +39,31 @@ extern Bitmap* healthPWBitmap;
 extern Bitmap* ammoPWBitmap;
 extern Bitmap* armorPWBitmap;
 extern Bitmap* pointPWBitmap;
-extern Bitmap* wallBitmap; // Assuming you have a specific wall bitmap
-extern Bitmap* floorBitmap; // Assuming you have a specific floor bitmap
+extern Bitmap* wallBitmap;
+extern Bitmap* floorBitmap;
 extern Bitmap* keyBitmap;
 extern Bitmap* endPointBitmap;
 extern Bitmap* secondWeaponBitmap;
 extern Bitmap* _pPlayerMissileBitmap;
-// YENÝ: Düþman spawn zamanlayýcýsý için deðiþken
+
+// Düþman spawn zamanlayýcýlarý için deðiþkenler
 extern DWORD g_dwLastSpawnTime;
+extern DWORD g_dwLastClosestEnemySpawnTime; // YENÝ: En yakýn düþmandan spawn için zamanlayýcý
 extern bool isLevelFinished;
 
-extern int  currentLevel; // Add a global variable for the current level
+extern int  currentLevel;
 
-// Add declarations for window dimensions
 extern int window_X, window_Y;
 
 void GenerateLevel(int level);
 void GenerateMaze(Bitmap* tileBit);
 void AddNonCollidableTile(int x, int y, Bitmap* bitmap);
-// DEÐÝÞÝKLÝK: Bu fonksiyon artýk Camera sýnýfý içinde olduðu için global olmasýna gerek yok.
-// void CenterCameraOnSprite(Sprite* sprite);
 void CleanupLevel();
 void LoadBitmaps(HDC hDC);
 void OnLevelComplete();
 
-// YENÝ: Oyuncunun yakýnýna düþman spawn edecek fonksiyon
+// Düþman spawn fonksiyonlarý
 void SpawnEnemyNearPlayer();
+void SpawnEnemyNearClosest(); // YENÝ FONKSÝYON BÝLDÝRÝMÝ
 
 #endif //GAME_H
