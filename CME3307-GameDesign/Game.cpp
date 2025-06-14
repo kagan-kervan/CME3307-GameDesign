@@ -1,9 +1,10 @@
 //
 // Created by ahmet on 3.06.2025.
 //
-
+#include <string> // Bu satýrý en baþa ekleyin
 #include "Game.h"
 #include <vector>
+#include "Enemy.h"
 
 //--------------------------------------------------
 //Global Variable Definitions
@@ -24,6 +25,7 @@ Background* background;
 Bitmap* wallBitmap;
 Bitmap* charBitmap;
 Bitmap* _pEnemyBitmap;
+Bitmap* _pPlayerMissileBitmap;
 HINSTANCE   instance;
 int window_X, window_Y;
 extern RECT globalBounds; // Make sure globalBounds is accessible
@@ -50,9 +52,11 @@ void GameStart(HWND hWindow)
         game_engine->GetWidth(), game_engine->GetHeight());
     SelectObject(offscreenDC, offscreenBitmap);
 
+
     HDC hDC = GetDC(hWindow);
     Bitmap* grassBit = new Bitmap(hDC, "tile.bmp");
     wallBitmap = new Bitmap(hDC, "wall.bmp");
+    _pPlayerMissileBitmap = new Bitmap(hDC, IDB_MISSILE, instance);
     TILE_SIZE = wallBitmap->GetHeight();
     charBitmap = new Bitmap(hDC, IDB_BITMAP3, instance);
     background = new Background(window_X, window_Y, RGB(0, 0, 0));
@@ -116,7 +120,7 @@ void GameEnd()
 
     // Cleanup bitmaps
     delete _pEnemyMissileBitmap;
-
+    delete _pPlayerMissileBitmap;
     // Cleanup the background
     delete background;
 
@@ -198,6 +202,19 @@ void HandleKeys()
 void MouseButtonDown(int x, int y, BOOL bLeft)
 {
 
+   
+     // BU FONKSÝYON AYNI KALIYOR
+    if (bLeft)
+    {
+        int targetWorldX = x + camera->x;
+        int targetWorldY = y + camera->y;
+
+        Player* pPlayer = static_cast<Player*>(charSprite);
+        if (pPlayer)
+        {
+            pPlayer->Fire(targetWorldX, targetWorldY);
+        }
+    }
 }
 
 void MouseButtonUp(int x, int y, BOOL bLeft)
@@ -217,9 +234,86 @@ void HandleJoystick(JOYSTATE jsJoystickState) {
 
 BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
 {
+    // Çarpýþan spritelarýn tiplerini al
+    SpriteType hitterType = pSpriteHitter->GetType();
+    SpriteType hitteeType = pSpriteHittee->GetType();
+
+    // --- YENÝ KURAL: AYNI TÝP MERMÝLER ÇARPIÞMAZ ---
+    // Bu kural, shotgun gibi ayný anda birden fazla mermi ateþlendiðinde
+    // mermilerin birbirine takýlmasýný önler.
+    if (hitterType == SPRITE_TYPE_PLAYER_MISSILE && hitteeType == SPRITE_TYPE_PLAYER_MISSILE)
+    {
+        // Hiçbir þey yapma, bu bir çarpýþma deðil.
+        return FALSE;
+    }
+    if (hitterType == SPRITE_TYPE_ENEMY_MISSILE && hitteeType == SPRITE_TYPE_ENEMY_MISSILE)
+    {
+        // Düþman mermileri de kendi aralarýnda çarpýþmasýn.
+        return FALSE;
+    }
+    // --------------------------------------------------
+
+
+    // --- KURAL: MERMÝ vs MERMÝ ÇARPIÞMASI ---
+    if ((hitterType == SPRITE_TYPE_PLAYER_MISSILE && hitteeType == SPRITE_TYPE_ENEMY_MISSILE) ||
+        (hitterType == SPRITE_TYPE_ENEMY_MISSILE && hitteeType == SPRITE_TYPE_PLAYER_MISSILE))
+    {
+        pSpriteHitter->Kill();
+        pSpriteHittee->Kill();
+        return FALSE;
+    }
+
+
+    // --- OYUNCU MERMÝSÝ ÝLE ÝLGÝLÝ ÇARPIÞMALAR ---
+    if (hitterType == SPRITE_TYPE_PLAYER_MISSILE || hitteeType == SPRITE_TYPE_PLAYER_MISSILE)
+    {
+        Sprite* missile = (hitterType == SPRITE_TYPE_PLAYER_MISSILE) ? pSpriteHitter : pSpriteHittee;
+        Sprite* other = (hitterType == SPRITE_TYPE_PLAYER_MISSILE) ? pSpriteHittee : pSpriteHitter;
+
+        if (other->GetType() == SPRITE_TYPE_WALL)
+        {
+            missile->Kill();
+            return FALSE;
+        }
+        if (other->GetType() == SPRITE_TYPE_ENEMY)
+        {
+            missile->Kill();
+            other->Kill();
+            return FALSE;
+        }
+        if (other->GetType() == SPRITE_TYPE_PLAYER)
+        {
+            return FALSE;
+        }
+    }
+
+    // --- DÜÞMAN MERMÝSÝ ÝLE ÝLGÝLÝ ÇARPIÞMALAR ---
+    if (hitterType == SPRITE_TYPE_ENEMY_MISSILE || hitteeType == SPRITE_TYPE_ENEMY_MISSILE)
+    {
+        Sprite* missile = (hitterType == SPRITE_TYPE_ENEMY_MISSILE) ? pSpriteHitter : pSpriteHittee;
+        Sprite* other = (hitterType == SPRITE_TYPE_ENEMY_MISSILE) ? pSpriteHittee : pSpriteHitter;
+
+        if (other->GetType() == SPRITE_TYPE_WALL)
+        {
+            missile->Kill();
+            return FALSE;
+        }
+        if (other->GetType() == SPRITE_TYPE_PLAYER)
+        {
+            missile->Kill();
+            other->Kill();
+            return FALSE;
+        }
+        if (other->GetType() == SPRITE_TYPE_ENEMY)
+        {
+            return FALSE;
+        }
+    }
+
+
+    // --- VARSAYILAN DAVRANIÞ ---
     return TRUE;
 }
-
 
 void GenerateMaze(Bitmap* tileBit) {
     mazeGenerator->generateMaze();
@@ -236,7 +330,7 @@ void GenerateMaze(Bitmap* tileBit) {
             int posY = y * tile_height;
             if (mazeArray[y][x] == -1) { // It's a wall
                 POINT pos = { posX, posY };
-                Sprite* wall = new Sprite(wallBitmap, rcBounds, BA_STOP);
+                Sprite* wall = new Sprite(wallBitmap, rcBounds, BA_STOP, SPRITE_TYPE_WALL);
                 wall->SetPosition(pos);
                 game_engine->AddSprite(wall);
             }

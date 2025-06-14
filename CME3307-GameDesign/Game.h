@@ -37,7 +37,7 @@ extern int TILE_SIZE;
 extern FOVBackground* fovEffect;
 extern Camera* camera;
 extern std::vector<Tile> nonCollidableTiles;
-
+extern Bitmap* _pPlayerMissileBitmap;
 // Add declarations for window dimensions
 extern int window_X, window_Y;
 
