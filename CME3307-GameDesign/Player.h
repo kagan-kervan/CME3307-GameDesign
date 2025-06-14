@@ -1,41 +1,39 @@
-#pragma once
 // Player.h
 #pragma once
 #include "Sprite.h"
 #include "MazeGenerator.h"
 #include <cmath>
 
-// YENï¿½: Silah tiplerini tanï¿½mlï¿½yoruz
+// YENÝ: Silah tiplerini tanýmlýyoruz
 enum class WeaponType {
     PISTOL,
     SHOTGUN,
-    SMG // Submachine Gun (Hï¿½zlï¿½ Taramalï¿½)
+    SMG // Submachine Gun (Hýzlý Taramalý)
 };
 
 class Player : public Sprite
 {
 public:
     Player(Bitmap* pBitmap, MazeGenerator* pMaze);
-    int TILE_SIZE = 50;
     virtual SPRITEACTION Update();
     void Fire(int targetX, int targetY);
 
 private:
     void HandleInput(float fDeltaTime);
-    void SwitchWeapon(WeaponType newWeapon); // Silah deï¿½iï¿½tiren yeni private fonksiyon
+    void SwitchWeapon(WeaponType newWeapon); // Silah deðiþtiren yeni private fonksiyon
 
     MazeGenerator* m_pMaze;
     float m_fSpeed;
     static const int SPRINT_SPEED_MULTIPLIER = 2;
 
-    // --- Sï¿½LAH Sï¿½STEMï¿½ DEï¿½ï¿½ï¿½KENLERï¿½ ---
-    WeaponType m_currentWeapon; // Oyuncunun mevcut silahï¿½
-    int m_iFireCooldown;        // Ateï¿½ etme bekleme sï¿½resi sayacï¿½
+    // --- SÝLAH SÝSTEMÝ DEÐÝÞKENLERÝ ---
+    WeaponType m_currentWeapon; // Oyuncunun mevcut silahý
+    int m_iFireCooldown;        // Ateþ etme bekleme süresi sayacý
 
-    static const int PISTOL_COOLDOWN = 6;  // 0.2 saniyede bir ateï¿½ eder
-    static const int SHOTGUN_COOLDOWN = 12; // ~0.6 saniyede bir ateï¿½ eder
-    static const int SMG_COOLDOWN = 1;      // ~0.06 saniyede bir (ï¿½ok ï¿½ok hï¿½zlï¿½)
+    static const int PISTOL_COOLDOWN = 6;  // 0.2 saniyede bir ateþ eder
+    static const int SHOTGUN_COOLDOWN = 12; // ~0.6 saniyede bir ateþ eder
+    static const int SMG_COOLDOWN = 1;      // ~0.06 saniyede bir (çok çok hýzlý)
 
-    // Mermi hï¿½zï¿½ (sabit kalabilir veya silaha gï¿½re deï¿½iï¿½ebilir)
+    // Mermi hýzý (sabit kalabilir veya silaha göre deðiþebilir)
     static const int MISSILE_SPEED_SPS = 2000; // Saniyede Piksel
 };

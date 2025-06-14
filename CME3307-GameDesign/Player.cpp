@@ -1,63 +1,69 @@
+// Player.cpp
 #include "Player.h"
+#include "Game.h"
+#include "Missile.h"
 #include "GameEngine.h"
 #include <string>
-#include <random> // Shotgun daï¿½ï¿½lï¿½mï¿½ iï¿½in
+#include <random> // Shotgun daðýlýmý için
 
-extern GameEngine* _pGame;
-extern Bitmap* _pMissileBitmap;
+extern GameEngine* game_engine;
+extern Bitmap* _pPlayerMissileBitmap;
+extern RECT globalBounds;
 
 Player::Player(Bitmap* pBitmap, MazeGenerator* pMaze)
-    : Sprite(pBitmap), m_pMaze(pMaze)
+    : Sprite(pBitmap, SPRITE_TYPE_PLAYER), m_pMaze(pMaze)
 {
     m_fSpeed = 1500.0f;
     m_iFireCooldown = 0;
 
-    // Oyuncu varsayï¿½lan olarak tabanca ile baï¿½lar
+    // Oyuncu varsayýlan olarak tabanca ile baþlar
     m_currentWeapon = WeaponType::PISTOL;
 }
 
 SPRITEACTION Player::Update()
 {
-    HandleInput();
+    float fDeltaTime = 1.0f / 60.0f;
 
-    // Hareket iï¿½in Sprite::Update'i ï¿½aï¿½ï¿½rmï¿½yoruz, ï¿½ï¿½nkï¿½ pozisyonu HandleInput'ta kendimiz ayarlï¿½yoruz.
-    // Sadece animasyon gibi baï¿½ka ï¿½zellikler varsa ï¿½aï¿½ï¿½rï¿½labilir.
-    // return Sprite::Update(); // Bu satï¿½r yerine aï¿½aï¿½ï¿½dakini kullanï¿½n:
+    if (m_iFireCooldown > 0) {
+        m_iFireCooldown--;
+    }
 
-    UpdateFrame(); // Sadece animasyon karesini gï¿½nceller
+    HandleInput(fDeltaTime);
+
+    UpdateFrame();
     if (m_bDying)
         return SA_KILL;
 
     return SA_NONE;
 }
 
-// YENï¿½: Silah deï¿½iï¿½tirme fonksiyonu
+// YENÝ: Silah deðiþtirme fonksiyonu
 void Player::SwitchWeapon(WeaponType newWeapon)
 {
-    // Eï¿½er zaten o silahtaysak bir ï¿½ey yapma
+    // Eðer zaten o silahtaysak bir þey yapma
     if (m_currentWeapon == newWeapon) {
         return;
     }
     m_iFireCooldown = 0;
     m_currentWeapon = newWeapon;
-    // ï¿½steï¿½e baï¿½lï¿½: Silah deï¿½iï¿½tirme sesi ï¿½al veya bir UI gï¿½ncellemesi yap
-    // ï¿½rneï¿½in: MessageBox(NULL, L"Silah Deï¿½iï¿½tirildi!", L"Bilgi", MB_OK);
+    // Ýsteðe baðlý: Silah deðiþtirme sesi çal veya bir UI güncellemesi yap
+    // Örneðin: MessageBox(NULL, L"Silah Deðiþtirildi!", L"Bilgi", MB_OK);
 }
 
 
-// ATEï¿½ ETME MANTIï¿½I Gï¿½NCELLENDï¿½
+// ATEÞ ETME MANTIÐI GÜNCELLENDÝ
 void Player::Fire(int targetX, int targetY)
 {
     if (m_iFireCooldown > 0) return;
 
-    // Ateï¿½ etme mantï¿½ï¿½ï¿½nï¿½ mevcut silaha gï¿½re ayarla
+    // Ateþ etme mantýðýný mevcut silaha göre ayarla
     switch (m_currentWeapon)
     {
     case WeaponType::PISTOL:
     {
-        m_iFireCooldown = PISTOL_COOLDOWN; // Tabanca bekleme sï¿½resini ayarla
+        m_iFireCooldown = PISTOL_COOLDOWN; // Tabanca bekleme süresini ayarla
 
-        // ---- Tek mermi ateï¿½leme (standart kod) ----
+        // ---- Tek mermi ateþleme (standart kod) ----
         POINT startPos = { m_rcPosition.left + GetWidth() / 2, m_rcPosition.top + GetHeight() / 2 };
         float dirX = static_cast<float>(targetX - startPos.x);
         float dirY = static_cast<float>(targetY - startPos.y);
@@ -75,11 +81,11 @@ void Player::Fire(int targetX, int targetY)
 
     case WeaponType::SHOTGUN:
     {
-        m_iFireCooldown = SHOTGUN_COOLDOWN; // Shotgun bekleme sï¿½resini ayarla
+        m_iFireCooldown = SHOTGUN_COOLDOWN; // Shotgun bekleme süresini ayarla
 
-        // ---- ï¿½oklu mermi (saï¿½ma) ateï¿½leme ----
-        const int pelletCount = 3; // Kaï¿½ adet saï¿½ma ateï¿½leneceï¿½i
-        const float spreadAngle = 18.0f; // Saï¿½ï¿½lma aï¿½ï¿½sï¿½ (derece)
+        // ---- Çoklu mermi (saçma) ateþleme ----
+        const int pelletCount = 3; // Kaç adet saçma ateþleneceði
+        const float spreadAngle = 18.0f; // Saçýlma açýsý (derece)
 
         for (int i = 0; i < pelletCount; ++i)
         {
@@ -87,7 +93,7 @@ void Player::Fire(int targetX, int targetY)
             float dirX = static_cast<float>(targetX - startPos.x);
             float dirY = static_cast<float>(targetY - startPos.y);
 
-            // Rastgele bir saï¿½ï¿½lma aï¿½ï¿½sï¿½ ekle
+            // Rastgele bir saçýlma açýsý ekle
             float randomSpread = (static_cast<float>(rand()) / RAND_MAX - 0.5f) * spreadAngle * (3.14159f / 180.0f); // radyan cinsinden
             float newDirX = dirX * cos(randomSpread) - dirY * sin(randomSpread);
             float newDirY = dirX * sin(randomSpread) + dirY * cos(randomSpread);
@@ -108,9 +114,9 @@ void Player::Fire(int targetX, int targetY)
 
     case WeaponType::SMG:
     {
-        m_iFireCooldown = SMG_COOLDOWN; // SMG bekleme sï¿½resini ayarla
+        m_iFireCooldown = SMG_COOLDOWN; // SMG bekleme süresini ayarla
 
-        // ---- Hï¿½zlï¿½, hafifï¿½e seken tek mermi ateï¿½leme ----
+        // ---- Hýzlý, hafifçe seken tek mermi ateþleme ----
         POINT startPos = { m_rcPosition.left + GetWidth() / 2, m_rcPosition.top + GetHeight() / 2 };
         float dirX = static_cast<float>(targetX - startPos.x);
         float dirY = static_cast<float>(targetY - startPos.y);
@@ -138,24 +144,24 @@ void Player::Fire(int targetX, int targetY)
 
 void Player::HandleInput(float fDeltaTime)
 {
-    // --- Silah Deï¿½iï¿½tirme Kontrolï¿½ ---
+    // --- Silah Deðiþtirme Kontrolü ---
     if (GetAsyncKeyState('1') & 0x8000) SwitchWeapon(WeaponType::PISTOL);
     if (GetAsyncKeyState('2') & 0x8000) SwitchWeapon(WeaponType::SHOTGUN);
     if (GetAsyncKeyState('3') & 0x8000) SwitchWeapon(WeaponType::SMG);
 
-    // --- HIZ BELï¿½RLEME (SPRINT KONTROLï¿½) ---
-    float currentSpeed = m_fSpeed; // Varsayï¿½lan hï¿½z normal yï¿½rï¿½me hï¿½zï¿½dï¿½r.
+    // --- HIZ BELÝRLEME (SPRINT KONTROLÜ) ---
+    float currentSpeed = m_fSpeed; // Varsayýlan hýz normal yürüme hýzýdýr.
 
-    // Eï¿½er sol SHIFT tuï¿½una basï¿½lï¿½yorsa...
+    // Eðer sol SHIFT tuþuna basýlýyorsa...
     if (GetAsyncKeyState(VK_LSHIFT) & 0x8000)
     {
-        // Hï¿½zï¿½, sprint hï¿½zï¿½yla gï¿½ncelle.
+        // Hýzý, sprint hýzýyla güncelle.
         currentSpeed *= SPRINT_SPEED_MULTIPLIER;
     }
     // -----------------------------------------
 
 
-    // --- Hareket Kontrolï¿½ ---
+    // --- Hareket Kontrolü ---
     float dirX = 0.0f;
     float dirY = 0.0f;
     if (GetAsyncKeyState('W') & 0x8000) dirY = -1.0f;
@@ -165,14 +171,14 @@ void Player::HandleInput(float fDeltaTime)
 
     if (dirX != 0.0f || dirY != 0.0f)
     {
-        // Yï¿½n vektï¿½rï¿½nï¿½ normalize et
+        // Yön vektörünü normalize et
         float length = std::sqrt(dirX * dirX + dirY * dirY);
         if (length > 0) {
             dirX /= length;
             dirY /= length;
         }
 
-        // HAREKET HESAPLAMASINDA Gï¿½NCEL HIZI KULLAN
+        // HAREKET HESAPLAMASINDA GÜNCEL HIZI KULLAN
         float moveAmountX = currentSpeed * dirX * fDeltaTime;
         float moveAmountY = currentSpeed * dirY * fDeltaTime;
 
@@ -180,7 +186,7 @@ void Player::HandleInput(float fDeltaTime)
         float newY = m_rcPosition.top + moveAmountY;
         RECT rcNewPos = { (int)newX, (int)newY, (int)newX + GetWidth(), (int)newY + GetHeight() };
 
-        // Duvar ï¿½arpï¿½ï¿½ma kontrolï¿½
+        // Duvar çarpýþma kontrolü
         if (!m_pMaze->IsWall(rcNewPos.left / TILE_SIZE, rcNewPos.top / TILE_SIZE) &&
             !m_pMaze->IsWall((rcNewPos.right - 1) / TILE_SIZE, rcNewPos.top / TILE_SIZE) &&
             !m_pMaze->IsWall(rcNewPos.left / TILE_SIZE, (rcNewPos.bottom - 1) / TILE_SIZE) &&
