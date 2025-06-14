@@ -4,11 +4,11 @@
 #include "MazeGenerator.h"
 #include <cmath>
 
-// YENÃ: Silah tiplerini tanÃ½mlÃ½yoruz
+// YENİ: Silah tiplerini tanımlıyoruz
 enum class WeaponType {
     PISTOL,
     SHOTGUN,
-    SMG // Submachine Gun (HÃ½zlÃ½ TaramalÃ½)
+    SMG // Submachine Gun (Hızlı Taramalı)
 };
 
 class Player : public Sprite
@@ -18,54 +18,22 @@ public:
     virtual SPRITEACTION Update();
     void Fire(int targetX, int targetY);
 
-    // Yeni eklenen public metodlar
-    void AddKey(int amount = 1);
-    int  GetKeys() const;
-
-    void AddHealth(int amount);
-    int  GetHealth() const;
-
-    void AddArmor(int amount);
-    int  GetArmor() const;
-
-    void AddScore(int amount);
-    int  GetScore() const;
-
-    void GiveSecondWeapon();
-    bool HasSecondWeapon() const;
-
-    void AddSecondaryAmmo(int amount);
-    int  GetSecondaryAmmo() const;
-
-
 private:
     void HandleInput(float fDeltaTime);
-    void SwitchWeapon(WeaponType newWeapon); // Silah deÃ°iÃ¾tiren yeni private fonksiyon
+    void SwitchWeapon(WeaponType newWeapon); // Silah değiştiren yeni private fonksiyon
 
     MazeGenerator* m_pMaze;
     float m_fSpeed;
     static const int SPRINT_SPEED_MULTIPLIER = 2;
 
-    // --- SÃLAH SÃSTEMÃ DEÃÃÃKENLERÃ ---
-    WeaponType m_currentWeapon; // Oyuncunun mevcut silahÃ½
-    int m_iFireCooldown;        // AteÃ¾ etme bekleme sÃ¼resi sayacÃ½
+    // --- SİLAH SİSTEMİ DEĞİŞKENLERİ ---
+    WeaponType m_currentWeapon; // Oyuncunun mevcut silahı
+    int m_iFireCooldown;        // Ateş etme bekleme süresi sayacı
 
-    static const int PISTOL_COOLDOWN = 6;  // 0.2 saniyede bir ateÃ¾ eder
-    static const int SHOTGUN_COOLDOWN = 12; // ~0.6 saniyede bir ateÃ¾ eder
-    static const int SMG_COOLDOWN = 1;      // ~0.06 saniyede bir (Ã§ok Ã§ok hÃ½zlÃ½)
+    static const int PISTOL_COOLDOWN = 6;  // 0.2 saniyede bir ateş eder
+    static const int SHOTGUN_COOLDOWN = 12; // ~0.6 saniyede bir ateş eder
+    static const int SMG_COOLDOWN = 1;      // ~0.06 saniyede bir (çok çok hızlı)
 
-    // Mermi hÃ½zÃ½ (sabit kalabilir veya silaha gÃ¶re deÃ°iÃ¾ebilir)
+    // Mermi hızı (sabit kalabilir veya silaha göre değişebilir)
     static const int MISSILE_SPEED_SPS = 2000; // Saniyede Piksel
-
-    MazeGenerator* m_pMaze; // Ã‡arpÃ½Ã¾ma kontrolÃ¼ iÃ§in labirent referansÃ½
-    int m_iSpeed;
-
-    // Yeni eklenen oyuncu Ã¶zellikleri
-    int m_iKeys;
-    int m_iHealth;
-    int m_iArmor;
-    int m_iScore;
-    int m_iSecondaryAmmo;
-    bool m_bHasSecondWeapon;
-
 };
