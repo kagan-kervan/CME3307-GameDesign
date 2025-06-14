@@ -1,3 +1,5 @@
+// Enemy.cpp
+
 #include "Enemy.h"
 #include "Game.h"
 #include "GameEngine.h"
@@ -9,7 +11,6 @@
 
 // A* Pathfinding (Bu kýsým doðru, deðiþtirilmedi)
 namespace Pathfinder {
-    // ... (Önceki doðru versiyondaki A* kodu burada yer alýyor)
     struct Node { int x, y, gCost, hCost; Node* parent; Node(int _x, int _y) : x(_x), y(_y), gCost(0), hCost(0), parent(nullptr) {} int fCost() const { return gCost + hCost; } };
     struct CompareNode { bool operator()(const Node* a, const Node* b) const { return a->fCost() > b->fCost(); } };
     int calculateHCost(int x1, int y1, int x2, int y2) { return abs(x1 - x2) + abs(y1 - y2); }
@@ -35,7 +36,7 @@ namespace Pathfinder {
     }
 }
 
-// HAREKET HATASI DÜZELTÝLDÝ: Kurucu metod artýk base class'ý doðru harita sýnýrlarýyla çaðýrýyor.
+
 Enemy::Enemy(Bitmap* pBitmap, RECT& rcBounds, BOUNDSACTION baBoundsAction,
     MazeGenerator* pMaze, Sprite* pPlayer, EnemyType type)
     : Sprite(pBitmap, rcBounds, baBoundsAction, SPRITE_TYPE_ENEMY), m_pMaze(pMaze), m_pPlayer(pPlayer), m_type(type)
@@ -43,7 +44,7 @@ Enemy::Enemy(Bitmap* pBitmap, RECT& rcBounds, BOUNDSACTION baBoundsAction,
     m_state = AIState::IDLE;
     m_pathIndex = 0;
     m_attackCooldown = 0;
-    m_pathfindingCooldown = 0; // Sayaç sýfýrdan baþlýyor
+    m_pathfindingCooldown = 0;
 
     Sprite::SetNumFrames(4);
     Sprite::SetFrameDelay(8);
@@ -52,7 +53,7 @@ Enemy::Enemy(Bitmap* pBitmap, RECT& rcBounds, BOUNDSACTION baBoundsAction,
 SPRITEACTION Enemy::Update()
 {
     UpdateAI();
-    return Sprite::Update(); // Hýzý ayarladýktan sonra hareket için base class'ý kullan
+    return Sprite::Update();
 }
 
 void Enemy::UpdateAI()
@@ -64,7 +65,6 @@ void Enemy::UpdateAI()
     float playerDistance = sqrt(pow(m_pPlayer->GetPosition().left - m_rcPosition.left, 2) +
         pow(m_pPlayer->GetPosition().top - m_rcPosition.top, 2));
 
-    // PERFORMANS OPTÝMÝZASYONU: Oyuncu çok uzaktaysa, AI'ý beklemeye al.
     if (playerDistance > TILE_SIZE * 20) {
         m_state = AIState::IDLE;
         SetVelocity(0, 0);
@@ -73,23 +73,19 @@ void Enemy::UpdateAI()
 
     bool hasLOS = HasLineOfSightToPlayer();
 
-    // Akýllý Strateji Belirleme
     if (hasLOS) {
-        // PERFORMANS OPTÝMÝZASYONU: Görüþ varsa, pahalý A* yolunu temizle ve direkt saldýr.
         m_path.clear();
         if (m_type == EnemyType::CHASER) {
             m_state = AIState::CHASING;
         }
-        else { // Turret
+        else {
             m_state = AIState::ATTACKING;
         }
     }
     else {
-        // Görüþ yoksa, yol bulmasý gerekiyor.
         m_state = AIState::CHASING;
     }
 
-    // Stratejiyi Uygulama
     switch (m_state)
     {
     case AIState::IDLE:
@@ -98,31 +94,27 @@ void Enemy::UpdateAI()
 
     case AIState::CHASING:
         if (!m_path.empty()) {
-            // Eðer takip edilecek bir yol varsa, onu takip et.
             FollowPath();
         }
         else {
-            // PERFORMANS OPTÝMÝZASYONU: Yol yoksa ve görüþ de yoksa,
-            // direkt oyuncuya doðru gitmeye çalýþ (köþelere takýlabilir).
             float dirX = (float)m_pPlayer->GetPosition().left - m_rcPosition.left;
             float dirY = (float)m_pPlayer->GetPosition().top - m_rcPosition.top;
             float len = sqrt(dirX * dirX + dirY * dirY);
             if (len > 0) { dirX /= len; dirY /= len; }
-            SetVelocity((int)(dirX * 3), (int)(dirY * 3));
+            SetVelocity((int)(dirX * 5), (int)(dirY * 5)); // Artýrýlmýþ hýz
 
-            // Ve periyodik olarak A* ile yeni bir yol bulmaya çalýþ.
             if (m_pathfindingCooldown <= 0) {
                 FindPath();
-                m_pathfindingCooldown = 45; // Her 1.5 saniyede bir yol ara
+                m_pathfindingCooldown = 45;
             }
         }
         break;
 
     case AIState::ATTACKING:
-        SetVelocity(0, 0); // Ateþ etmek için dur
+        SetVelocity(0, 0);
         if (m_attackCooldown <= 0) {
             AttackPlayer();
-            m_attackCooldown = 60; // 2 saniyede bir ateþ et
+            m_attackCooldown = 60;
         }
         break;
     }
@@ -155,7 +147,7 @@ void Enemy::FollowPath()
     if (distance < TILE_SIZE / 2.0f) {
         m_pathIndex++;
         if (m_pathIndex >= m_path.size()) {
-            m_path.clear(); // Yol bitti, yenisi bulunana kadar bekle.
+            m_path.clear();
             SetVelocity(0, 0);
             return;
         }
@@ -164,10 +156,9 @@ void Enemy::FollowPath()
     float dirY = targetY - currentY;
     float len = sqrt(dirX * dirX + dirY * dirY);
     if (len > 0) { dirX /= len; dirY /= len; }
-    SetVelocity((int)(dirX * 4), (int)(dirY * 4)); // Biraz daha hýzlý takip
-}
+    SetVelocity((int)(dirX * 7), (int)(dirY * 7)); // Artýrýlmýþ takip hýzý
+} // HATA DÜZELTÝLDÝ: Bu kapanýþ parantezi eksikti.
 
-// HasLineOfSight and AttackPlayer do not need changes, but are included for completeness.
 bool Enemy::HasLineOfSightToPlayer()
 {
     if (!m_pPlayer || !m_pMaze) return false;
@@ -197,8 +188,8 @@ void Enemy::AttackPlayer()
     float dirX = playerCenterX - enemyCenterX, dirY = playerCenterY - enemyCenterY;
     float length = sqrt(dirX * dirX + dirY * dirY);
     if (length > 0) { dirX /= length; dirY /= length; }
-    RECT rcBounds = { 0, 0, 50 * (25 * 2 + 1), 50 * (25 * 2 + 1) }; // Updated bounds
-    Sprite* pMissile = new Sprite(_pEnemyMissileBitmap, rcBounds, BA_DIE,SPRITE_TYPE_ENEMY_MISSILE);
+    RECT rcBounds = { 0, 0, 50 * (15 * 2 + 1), 50 * (15 * 2 + 1) }; // Labirent boyutuna göre güncellendi
+    Sprite* pMissile = new Sprite(_pEnemyMissileBitmap, rcBounds, BA_DIE, SPRITE_TYPE_ENEMY_MISSILE);
     pMissile->SetPosition((int)enemyCenterX - pMissile->GetWidth() / 2, (int)enemyCenterY - pMissile->GetHeight() / 2);
     int missileSpeed = 8;
     pMissile->SetVelocity(static_cast<int>(dirX * missileSpeed), static_cast<int>(dirY * missileSpeed));

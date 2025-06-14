@@ -47,7 +47,8 @@ extern Bitmap* keyBitmap;
 extern Bitmap* endPointBitmap;
 extern Bitmap* secondWeaponBitmap;
 extern Bitmap* _pPlayerMissileBitmap;
-
+// YENÝ: Düþman spawn zamanlayýcýsý için deðiþken
+extern DWORD g_dwLastSpawnTime;
 extern bool isLevelFinished;
 
 extern int  currentLevel; // Add a global variable for the current level
@@ -55,16 +56,16 @@ extern int  currentLevel; // Add a global variable for the current level
 // Add declarations for window dimensions
 extern int window_X, window_Y;
 
-//Functions to be used
-
-void GenerateLevel(int level); // Renamed for clarity, as it does more than generate a maze
+void GenerateLevel(int level);
 void GenerateMaze(Bitmap* tileBit);
 void AddNonCollidableTile(int x, int y, Bitmap* bitmap);
-void CenterCameraOnSprite(Sprite* sprite);
-void CleanupLevel(); // Good practice to have a function to clear old sprites
+// DEÐÝÞÝKLÝK: Bu fonksiyon artýk Camera sýnýfý içinde olduðu için global olmasýna gerek yok.
+// void CenterCameraOnSprite(Sprite* sprite);
+void CleanupLevel();
 void LoadBitmaps(HDC hDC);
-
-// Yeni seviye oluþturma fonksiyonu
 void OnLevelComplete();
+
+// YENÝ: Oyuncunun yakýnýna düþman spawn edecek fonksiyon
+void SpawnEnemyNearPlayer();
 
 #endif //GAME_H

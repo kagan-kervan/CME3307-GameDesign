@@ -5,12 +5,15 @@
 #include "Game.h"
 #include <vector>
 #include "Enemy.h"
+#include <random> // YENİ: Rastgele konum bulmak için
 //--------------------------------------------------
 //Global Variable Definitions
 //--------------------------------------------------
 std::vector<Tile> nonCollidableTiles;
 RECT globalBounds = { 0,0,4000,4000 };
-
+// YENİ: Düşman spawn zamanlayıcısı için değişken tanımı ve interval
+DWORD g_dwLastSpawnTime = 0;
+const DWORD ENEMY_SPAWN_INTERVAL = 7000; // 7 saniye (milisaniye cinsinden)
 GameEngine* game_engine;
 Player* charSprite;
 MazeGenerator* mazeGenerator;
@@ -56,6 +59,44 @@ BOOL GameInitialize(HINSTANCE hInst)
 
     return TRUE;
 }
+// DEĞİŞİKLİK: Camera sınıfının yeni kurucu metodunu kullanıyoruz.
+Camera::Camera(Sprite* target, int w, int h)
+    : m_pTarget(target), width(w), height(h), m_fLerpFactor(0.08f) // Yumuşatma faktörünü ayarla
+{
+    if (m_pTarget)
+    {
+        // Başlangıç pozisyonunu direkt hedefe ayarla
+        RECT pos = m_pTarget->GetPosition();
+        m_fCurrentX = (float)(pos.left + m_pTarget->GetWidth() / 2 - width / 2);
+        m_fCurrentY = (float)(pos.top + m_pTarget->GetHeight() / 2 - height / 2);
+        x = (int)m_fCurrentX;
+        y = (int)m_fCurrentY;
+    }
+    else
+    {
+        x = y = 0;
+        m_fCurrentX = m_fCurrentY = 0.0f;
+    }
+}
+
+// YENİ: Kameranın yumuşak hareketini sağlayan Update fonksiyonu.
+void Camera::Update()
+{
+    if (!m_pTarget) return;
+
+    // 1. Hedef pozisyonu hesapla (ekranın ortası oyuncunun üzerinde olacak şekilde)
+    RECT pos = m_pTarget->GetPosition();
+    float targetX = (float)(pos.left + m_pTarget->GetWidth() / 2 - width / 2);
+    float targetY = (float)(pos.top + m_pTarget->GetHeight() / 2 - height / 2);
+
+    // 2. Mevcut pozisyonu hedefe doğru yumuşakça kaydır (Interpolation)
+    m_fCurrentX += (targetX - m_fCurrentX) * m_fLerpFactor;
+    m_fCurrentY += (targetY - m_fCurrentY) * m_fLerpFactor;
+
+    // 3. Tamsayı pozisyonlarını güncelle
+    x = (int)round(m_fCurrentX);
+    y = (int)round(m_fCurrentY);
+}
 
 void GameStart(HWND hWindow)
 {
@@ -73,16 +114,14 @@ void GameStart(HWND hWindow)
     // DONMAYI AZALTMAK İÇİN: Labirent boyutunu test için makul bir seviyeye getirdim.
     // Performansın iyi olduğundan emin olunca tekrar büyütebilirsiniz.
     mazeGenerator = new MazeGenerator(15, 15);
-    // Player can be created after maze
     charSprite = new Player(charBitmap, mazeGenerator);
     currentLevel = 1;
     GenerateLevel(currentLevel);
     game_engine->AddSprite(charSprite);
 
-    // Initialize Camera and FOV AFTER player is positioned
-    camera = new Camera(0, 0, window_X, window_Y);
-    CenterCameraOnSprite(charSprite); // Initial camera position
-    fovEffect = new FOVBackground(charSprite, 90, 150);
+    // DEĞİŞİKLİK: Kamera artık oyuncuyu hedef alarak oluşturuluyor.
+    camera = new Camera(charSprite, window_X, window_Y);
+    fovEffect = new FOVBackground(charSprite, 90, 350); // Fener mesafesini biraz artırdım
 
 
     // Create and add multiple enemies
@@ -141,19 +180,11 @@ void GameDeactivate(HWND hWindow)
 
 void GamePaint(HDC hDC)
 {
-    // Draw background with camera offset
-    background->Draw(hDC, camera->x, camera->y);
-
-    CenterCameraOnSprite(charSprite);
-
-    // Draw all sprites that are visible in the camera's viewport
-    RECT camRect = { camera->x, camera->y, camera->x + camera->width, camera->y + camera->height };
-
-
+    // DEĞİŞİKLİK: CenterCameraOnSprite artık çağrılmıyor. Kamera kendi kendini güncelliyor.
+    background->Draw(hDC, 0, 0); // Arkaplan artık kameraya göre oynamamalı, sabit kalmalı.
 
     // Draw all non-collidable tiles
     for (const auto& tile : nonCollidableTiles) {
-        // Adjust for camera offset if needed
         tile.bitmap->Draw(hDC, tile.x - camera->x, tile.y - camera->y, TRUE);
     }
 
@@ -161,42 +192,86 @@ void GamePaint(HDC hDC)
     for (Sprite* sprite : game_engine->GetSprites()) {
         sprite->Draw(hDC, camera->x, camera->y);
     }
+
+    // Fener efekti en son çizilir
     fovEffect->Draw(hDC, camera->x, camera->y);
 }
 
 void GameCycle()
 {
-    // Update the background
+    // YENİ: Kamerayı her döngüde güncelle
+    if (camera) {
+        camera->Update();
+    }
+
     background->Update();
-    game_engine->UpdateSprites(); // This updates player and enemies
+    game_engine->UpdateSprites();
+
+    // YENİ: Düşman spawn etme mantığı
+    if (GetTickCount() > g_dwLastSpawnTime + ENEMY_SPAWN_INTERVAL)
+    {
+        SpawnEnemyNearPlayer();
+        g_dwLastSpawnTime = GetTickCount(); // Zamanlayıcıyı sıfırla
+    }
 
     if (isLevelFinished) {
         OnLevelComplete();
         isLevelFinished = false;
         return;
     }
-    // MOUSE BUG FIX: Pass camera coordinates to the FOV update function.
+
     if (fovEffect && camera) {
         fovEffect->Update(camera->x, camera->y);
     }
 
-    // Obtain a device context for repainting the game
     HWND  hWindow = game_engine->GetWindow();
     HDC   hDC = GetDC(hWindow);
 
-    // Paint the game to the offscreen device context
-    // Center camera on sprite
-    CenterCameraOnSprite(charSprite);
-
+    // DEĞİŞİKLİK: CenterCameraOnSprite artık çağrılmıyor.
     GamePaint(offscreenDC);
-    // Blit the offscreen bitmap to the game screen
+
     BitBlt(hDC, 0, 0, game_engine->GetWidth(), game_engine->GetHeight(),
         offscreenDC, 0, 0, SRCCOPY);
 
-    // Cleanup
     ReleaseDC(hWindow, hDC);
 }
+// YENİ: Oyuncunun yakınına rastgele bir düşman spawn eden fonksiyon
+void SpawnEnemyNearPlayer()
+{
+    if (!mazeGenerator || !charSprite || !_pEnemyBitmap || !game_engine) return;
 
+    // Oyuncunun tile koordinatlarını al
+    RECT playerPos = charSprite->GetPosition();
+    int playerTileX = playerPos.left / TILE_SIZE;
+    int playerTileY = playerPos.top / TILE_SIZE;
+
+    // Oyuncunun etrafında rastgele bir boş tile bulmaya çalış
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> distr(-5, 5); // Oyuncunun +/- 5 tile uzağında bir yer
+
+    int spawnTileX, spawnTileY;
+    int tryCount = 0;
+    const int maxTries = 20; // Sonsuz döngüyü önlemek için
+
+    do {
+        spawnTileX = playerTileX + distr(gen);
+        spawnTileY = playerTileY + distr(gen);
+        tryCount++;
+    } while (mazeGenerator->IsWall(spawnTileX, spawnTileY) && tryCount < maxTries);
+
+    // Eğer geçerli bir yer bulunduysa düşmanı oluştur
+    if (tryCount < maxTries)
+    {
+        EnemyType type = (rand() % 2 == 0) ? EnemyType::TURRET : EnemyType::CHASER;
+
+        Enemy* pEnemy = new Enemy(_pEnemyBitmap, globalBounds, BA_STOP,
+            mazeGenerator, charSprite, type);
+
+        pEnemy->SetPosition(spawnTileX * TILE_SIZE, spawnTileY * TILE_SIZE);
+        game_engine->AddSprite(pEnemy);
+    }
+}
 void HandleKeys()
 {
 
