@@ -100,6 +100,7 @@ public:
                         BOOL bRestart = TRUE);
   void                PauseMIDISong();
   void                CloseMIDIPlayer();
+  void                RemoveSprite(Sprite* pSpriteToRemove);
 
   // Accessor Methods
   HINSTANCE GetInstance() { return m_hInstance; };

@@ -469,3 +469,9 @@ void GameEngine::CloseMIDIPlayer()
     m_uiMIDIPlayerID = 0;
   }
 }
+void GameEngine::RemoveSprite(Sprite* pSpriteToRemove)
+{
+    // std::remove, belirtilen elemaný sona taþýr ve yeni sonun iterator'ýný döndürür.
+    // erase ile bu aralýðý sileriz. Bu, C++'ta bir vektörden eleman silmenin standart yoludur.
+    m_vSprites.erase(std::remove(m_vSprites.begin(), m_vSprites.end(), pSpriteToRemove), m_vSprites.end());
+}

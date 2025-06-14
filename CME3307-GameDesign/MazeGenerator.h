@@ -85,9 +85,3 @@ public:
     std::pair<int, int> GetStartPos() const { return startPosition; }
     std::pair<int, int> GetEndPos() const { return endPosition; }
 };
-
-struct Room {
-    int x, y; // Top-left corner
-    int w, h; // Width and height
-    Room(int _x, int _y, int _w, int _h) : x(_x), y(_y), w(_w), h(_h) {}
-};

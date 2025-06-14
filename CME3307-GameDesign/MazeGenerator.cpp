@@ -17,6 +17,7 @@ void MazeGenerator::generateMaze() {
     std::vector<Room> rooms;
     int numRooms = (width * height) / 20;
     for (int i = 0; i < numRooms; i++) {
+        // ... (room size and position logic remains the same)
         std::uniform_int_distribution<int> widthDist(2, 5);
         std::uniform_int_distribution<int> heightDist(2, 5);
         int roomW = widthDist(rng);
@@ -38,7 +39,8 @@ void MazeGenerator::generateMaze() {
             for (int y = roomY; y < roomY + roomH * 2; y++) {
                 for (int x = roomX; x < roomX + roomW * 2; x++) {
                     if (isValid(x, y)) {
-                        maze[y][x] = 0;
+                        // CHANGED: Use the enum for a path
+                        maze[y][x] = (int)TileType::PATH;
                         isRoomCell[y][x] = true;
                     }
                 }
@@ -47,16 +49,21 @@ void MazeGenerator::generateMaze() {
         }
     }
 
-    // Step 2: Connect rooms and fill maze
+    // Step 2: Connect rooms and fill maze using Randomized DFS
     std::stack<std::pair<int, int>> stack;
     if (!rooms.empty()) {
+        // Start from a random point in the first room
         int startX = rooms[0].x + 2 * (rng() % rooms[0].w);
         int startY = rooms[0].y + 2 * (rng() % rooms[0].h);
-        maze[startY][startX] = 0;
+
+        // CHANGED: Use the enum for a path
+        maze[startY][startX] = (int)TileType::PATH;
         stack.push({ startX, startY });
     }
     else {
-        maze[1][1] = 0;
+        // Fallback if no rooms were generated
+        // CHANGED: Use the enum for a path
+        maze[1][1] = (int)TileType::PATH;
         stack.push({ 1, 1 });
     }
 
@@ -71,7 +78,7 @@ void MazeGenerator::generateMaze() {
             int direction = neighbors[dist(rng)];
             int nextX = currentX + dx[direction] * 2;
             int nextY = currentY + dy[direction] * 2;
-            carvePassage(currentX, currentY, nextX, nextY);
+            carvePassage(currentX, currentY, nextX, nextY); // This function also needs updating
             stack.push({ nextX, nextY });
         }
         else {
@@ -96,10 +103,15 @@ std::vector<int> MazeGenerator::getUnvisitedNeighbors(int x, int y) {
 }
 
 void MazeGenerator::carvePassage(int x1, int y1, int x2, int y2) {
-    maze[y2][x2] = 0;
+    // CHANGED: Carve the new cell as a path
+    maze[y2][x2] = (int)TileType::PATH;
+
+    // Get the wall between the two cells
     int wallX = (x1 + x2) / 2;
     int wallY = (y1 + y2) / 2;
-    maze[wallY][wallX] = 0;
+
+    // CHANGED: Carve the wall as a path
+    maze[wallY][wallX] = (int)TileType::PATH;
 }
 
 const std::vector<std::vector<int>>& MazeGenerator::GetMaze() const {
