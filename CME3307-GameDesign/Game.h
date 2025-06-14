@@ -37,6 +37,8 @@ extern int TILE_SIZE;
 extern FOVBackground* fovEffect;
 extern Camera* camera;
 extern std::vector<Tile> nonCollidableTiles;
+
+extern Bitmap* _pPlayerMissileBitmap;
 extern Bitmap* healthPWBitmap;
 extern Bitmap* ammoPWBitmap;
 extern Bitmap* armorPWBitmap;
@@ -51,6 +53,7 @@ extern bool isLevelFinished;
 
 extern int  currentLevel; // Add a global variable for the current level
 
+
 // Add declarations for window dimensions
 extern int window_X, window_Y;
 
@@ -63,7 +66,7 @@ void CenterCameraOnSprite(Sprite* sprite);
 void CleanupLevel(); // Good practice to have a function to clear old sprites
 void LoadBitmaps(HDC hDC);
 
-// Yeni seviye oluþturma fonksiyonu
+// Yeni seviye oluÃ¾turma fonksiyonu
 void OnLevelComplete();
 
 #endif //GAME_H
