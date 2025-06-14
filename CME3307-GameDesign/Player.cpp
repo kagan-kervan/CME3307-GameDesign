@@ -9,6 +9,12 @@ Player::Player(Bitmap* pBitmap, MazeGenerator* pMaze)
     : Sprite(pBitmap), m_pMaze(pMaze)
 {
     m_iSpeed = 50;
+    m_iHealth = 100;
+    m_iArmor = 0;
+    m_iKeys = 0;
+    m_iScore = 0;
+    m_bHasSecondWeapon = false;
+    m_iSecondaryAmmo = 0;
 }
 
 SPRITEACTION Player::Update()
@@ -61,3 +67,21 @@ void Player::HandleInput()
         _pGame->AddSprite(pBullet);
     }*/
 }
+
+void Player::AddKey(int amount) { m_iKeys += amount; }
+int  Player::GetKeys() const { return m_iKeys; }
+
+void Player::AddHealth(int amount) { m_iHealth = min(100, m_iHealth + amount); } // Can 100'ü geçemez
+int  Player::GetHealth() const { return m_iHealth; }
+
+void Player::AddArmor(int amount) { m_iArmor = min(100, m_iArmor + amount); } // Zýrh 100'ü geçemez
+int  Player::GetArmor() const { return m_iArmor; }
+
+void Player::AddScore(int amount) { m_iScore += amount; }
+int  Player::GetScore() const { return m_iScore; }
+
+void Player::GiveSecondWeapon() { m_bHasSecondWeapon = true; }
+bool Player::HasSecondWeapon() const { return m_bHasSecondWeapon; }
+
+void Player::AddSecondaryAmmo(int amount) { if (m_bHasSecondWeapon) m_iSecondaryAmmo += amount; }
+int  Player::GetSecondaryAmmo() const { return m_iSecondaryAmmo; }
