@@ -6,20 +6,21 @@
 class FOVBackground
 {
 protected:
-    Sprite* m_pPlayer;       // Reference to the player sprite
-    int m_iFOVDegrees;       // Field of view in degrees
-    int m_iFOVDistance;      // How far the FOV extends
-    double m_dDirection;     // Direction angle in radians
-    POINT m_ptMouse;        // Current mouse position
+    Sprite* m_pPlayer;
+    int m_iFOVDegrees;
+    int m_iFOVDistance;
+    double m_dDirection;
+    POINT m_ptMouse;
 
 public:
     FOVBackground(Sprite* pPlayer, int iFOVDegrees = 90, int iFOVDistance = 200);
     virtual ~FOVBackground() {}
 
     virtual void Draw(HDC hDC);
-    virtual void Draw(HDC hDC, int cameraX, int cameraY); // Add camera-aware drawing
-    virtual SPRITEACTION Update();
+    virtual void Draw(HDC hDC, int cameraX, int cameraY);
 
-    // Handle mouse position updates
+    // MOUSE BUG FIX: Update now takes camera coordinates
+    virtual SPRITEACTION Update(int cameraX, int cameraY);
+
     void UpdateMousePos(int x, int y) { m_ptMouse.x = x; m_ptMouse.y = y; }
 };

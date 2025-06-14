@@ -4,31 +4,31 @@
 #define PI 3.14159265358979323846
 
 FOVBackground::FOVBackground(Sprite* pPlayer, int iFOVDegrees, int iFOVDistance)
-    :
-    m_pPlayer(pPlayer),
-    m_iFOVDegrees(iFOVDegrees),
-    m_iFOVDistance(iFOVDistance),
-    m_dDirection(0.0)
+    : m_pPlayer(pPlayer), m_iFOVDegrees(iFOVDegrees), m_iFOVDistance(iFOVDistance), m_dDirection(0.0)
 {
     m_ptMouse.x = 0;
     m_ptMouse.y = 0;
 }
 
-SPRITEACTION FOVBackground::Update()
+// MOUSE BUG FIX: Update uses the camera coordinates to correctly calculate the direction.
+SPRITEACTION FOVBackground::Update(int cameraX, int cameraY)
 {
     if (m_pPlayer)
     {
-        // Get player center position
+        // Player's center in world coordinates
         RECT rcPos = m_pPlayer->GetPosition();
         int playerX = rcPos.left + (rcPos.right - rcPos.left) / 2;
         int playerY = rcPos.top + (rcPos.bottom - rcPos.top) / 2;
 
-        // Calculate direction to mouse
-        double dx = m_ptMouse.x - playerX;
-        double dy = m_ptMouse.y - playerY;
+        // Convert mouse screen coordinates to world coordinates
+        int mouseWorldX = m_ptMouse.x + cameraX;
+        int mouseWorldY = m_ptMouse.y + cameraY;
+
+        // Calculate direction vector from player to the mouse in the world
+        double dx = mouseWorldX - playerX;
+        double dy = mouseWorldY - playerY;
         m_dDirection = atan2(dy, dx);
     }
-
     return SA_NONE;
 }
 void FOVBackground::Draw(HDC hDC, int cameraX, int cameraY)
