@@ -1,6 +1,7 @@
 #include "Player.h"
 #include "GameEngine.h"
-#include "resource.h"
+#include <string>
+#include <random> // Shotgun daï¿½ï¿½lï¿½mï¿½ iï¿½in
 
 extern GameEngine* _pGame;
 extern Bitmap* _pMissileBitmap;
@@ -8,80 +9,184 @@ extern Bitmap* _pMissileBitmap;
 Player::Player(Bitmap* pBitmap, MazeGenerator* pMaze)
     : Sprite(pBitmap), m_pMaze(pMaze)
 {
-    m_iSpeed = 50;
-    m_iHealth = 100;
-    m_iArmor = 0;
-    m_iKeys = 0;
-    m_iScore = 0;
-    m_bHasSecondWeapon = false;
-    m_iSecondaryAmmo = 0;
+    m_fSpeed = 1500.0f;
+    m_iFireCooldown = 0;
+
+    // Oyuncu varsayï¿½lan olarak tabanca ile baï¿½lar
+    m_currentWeapon = WeaponType::PISTOL;
 }
 
 SPRITEACTION Player::Update()
 {
     HandleInput();
 
-    // Hareket için Sprite::Update'i çaðýrmýyoruz, çünkü pozisyonu HandleInput'ta kendimiz ayarlýyoruz.
-    // Sadece animasyon gibi baþka özellikler varsa çaðýrýlabilir.
-    // return Sprite::Update(); // Bu satýr yerine aþaðýdakini kullanýn:
+    // Hareket iï¿½in Sprite::Update'i ï¿½aï¿½ï¿½rmï¿½yoruz, ï¿½ï¿½nkï¿½ pozisyonu HandleInput'ta kendimiz ayarlï¿½yoruz.
+    // Sadece animasyon gibi baï¿½ka ï¿½zellikler varsa ï¿½aï¿½ï¿½rï¿½labilir.
+    // return Sprite::Update(); // Bu satï¿½r yerine aï¿½aï¿½ï¿½dakini kullanï¿½n:
 
-    UpdateFrame(); // Sadece animasyon karesini günceller
+    UpdateFrame(); // Sadece animasyon karesini gï¿½nceller
     if (m_bDying)
         return SA_KILL;
 
     return SA_NONE;
 }
 
-void Player::HandleInput()
+// YENï¿½: Silah deï¿½iï¿½tirme fonksiyonu
+void Player::SwitchWeapon(WeaponType newWeapon)
 {
-    POINT currentPos = { m_rcPosition.left, m_rcPosition.top };
-    int moveX = 0;
-    int moveY = 0;
-
-    if (GetAsyncKeyState(VK_UP) & 0x8000)    moveY = -m_iSpeed;
-    if (GetAsyncKeyState(VK_DOWN) & 0x8000)  moveY = m_iSpeed;
-    if (GetAsyncKeyState(VK_LEFT) & 0x8000)  moveX = -m_iSpeed;
-    if (GetAsyncKeyState(VK_RIGHT) & 0x8000) moveX = m_iSpeed;
-
-    int newX = currentPos.x + moveX;
-    int newY = currentPos.y + moveY;
-
-    RECT rcNewPos = { newX, newY, newX + GetWidth(), newY + GetHeight() };
-
-    if (!m_pMaze->IsWall(rcNewPos.left/TILE_SIZE, rcNewPos.top/TILE_SIZE) &&
-        !m_pMaze->IsWall((rcNewPos.right - 1)/TILE_SIZE, rcNewPos.top/TILE_SIZE) &&
-        !m_pMaze->IsWall(rcNewPos.left / TILE_SIZE, (rcNewPos.bottom - 1) / TILE_SIZE) &&
-        !m_pMaze->IsWall((rcNewPos.right - 1) / TILE_SIZE, (rcNewPos.bottom - 1) / TILE_SIZE))
-    {
-        SetPosition(newX, newY);
+    // Eï¿½er zaten o silahtaysak bir ï¿½ey yapma
+    if (m_currentWeapon == newWeapon) {
+        return;
     }
-
-    /*static int fireDelay = 0;
-    if (++fireDelay > 10 && (GetAsyncKeyState(VK_SPACE) & 0x8000))
-    {
-        fireDelay = 0;
-        RECT rcBounds = { 0, 0, m_pMaze->getMaze().size() * 50, m_pMaze->getMaze()[0].size() * 50 };
-        Sprite* pBullet = new Sprite(_pMissileBitmap, rcBounds, BA_DIE);
-        pBullet->SetPosition(m_rcPosition.left + (GetWidth() / 2) - (pBullet->GetWidth() / 2), m_rcPosition.top);
-        pBullet->SetVelocity(0, -8);
-        _pGame->AddSprite(pBullet);
-    }*/
+    m_iFireCooldown = 0;
+    m_currentWeapon = newWeapon;
+    // ï¿½steï¿½e baï¿½lï¿½: Silah deï¿½iï¿½tirme sesi ï¿½al veya bir UI gï¿½ncellemesi yap
+    // ï¿½rneï¿½in: MessageBox(NULL, L"Silah Deï¿½iï¿½tirildi!", L"Bilgi", MB_OK);
 }
 
-void Player::AddKey(int amount) { m_iKeys += amount; }
-int  Player::GetKeys() const { return m_iKeys; }
 
-void Player::AddHealth(int amount) { m_iHealth = min(100, m_iHealth + amount); } // Can 100'ü geçemez
-int  Player::GetHealth() const { return m_iHealth; }
+// ATEï¿½ ETME MANTIï¿½I Gï¿½NCELLENDï¿½
+void Player::Fire(int targetX, int targetY)
+{
+    if (m_iFireCooldown > 0) return;
 
-void Player::AddArmor(int amount) { m_iArmor = min(100, m_iArmor + amount); } // Zýrh 100'ü geçemez
-int  Player::GetArmor() const { return m_iArmor; }
+    // Ateï¿½ etme mantï¿½ï¿½ï¿½nï¿½ mevcut silaha gï¿½re ayarla
+    switch (m_currentWeapon)
+    {
+    case WeaponType::PISTOL:
+    {
+        m_iFireCooldown = PISTOL_COOLDOWN; // Tabanca bekleme sï¿½resini ayarla
 
-void Player::AddScore(int amount) { m_iScore += amount; }
-int  Player::GetScore() const { return m_iScore; }
+        // ---- Tek mermi ateï¿½leme (standart kod) ----
+        POINT startPos = { m_rcPosition.left + GetWidth() / 2, m_rcPosition.top + GetHeight() / 2 };
+        float dirX = static_cast<float>(targetX - startPos.x);
+        float dirY = static_cast<float>(targetY - startPos.y);
+        float distance = std::sqrt(dirX * dirX + dirY * dirY);
+        if (distance == 0) return;
+        float normX = dirX / distance;
+        float normY = dirY / distance;
+        float velocityX = normX * MISSILE_SPEED_SPS;
+        float velocityY = normY * MISSILE_SPEED_SPS;
+        Missile* pMissile = new Missile(_pPlayerMissileBitmap, globalBounds, startPos, velocityX, velocityY);
+        pMissile->SetPosition(startPos.x - pMissile->GetWidth() / 2, startPos.y - pMissile->GetHeight() / 2);
+        game_engine->AddSprite(pMissile);
+        break;
+    }
 
-void Player::GiveSecondWeapon() { m_bHasSecondWeapon = true; }
-bool Player::HasSecondWeapon() const { return m_bHasSecondWeapon; }
+    case WeaponType::SHOTGUN:
+    {
+        m_iFireCooldown = SHOTGUN_COOLDOWN; // Shotgun bekleme sï¿½resini ayarla
 
-void Player::AddSecondaryAmmo(int amount) { if (m_bHasSecondWeapon) m_iSecondaryAmmo += amount; }
-int  Player::GetSecondaryAmmo() const { return m_iSecondaryAmmo; }
+        // ---- ï¿½oklu mermi (saï¿½ma) ateï¿½leme ----
+        const int pelletCount = 3; // Kaï¿½ adet saï¿½ma ateï¿½leneceï¿½i
+        const float spreadAngle = 18.0f; // Saï¿½ï¿½lma aï¿½ï¿½sï¿½ (derece)
+
+        for (int i = 0; i < pelletCount; ++i)
+        {
+            POINT startPos = { m_rcPosition.left + GetWidth() / 2, m_rcPosition.top + GetHeight() / 2 };
+            float dirX = static_cast<float>(targetX - startPos.x);
+            float dirY = static_cast<float>(targetY - startPos.y);
+
+            // Rastgele bir saï¿½ï¿½lma aï¿½ï¿½sï¿½ ekle
+            float randomSpread = (static_cast<float>(rand()) / RAND_MAX - 0.5f) * spreadAngle * (3.14159f / 180.0f); // radyan cinsinden
+            float newDirX = dirX * cos(randomSpread) - dirY * sin(randomSpread);
+            float newDirY = dirX * sin(randomSpread) + dirY * cos(randomSpread);
+
+            float distance = std::sqrt(newDirX * newDirX + newDirY * newDirY);
+            if (distance == 0) continue;
+
+            float normX = newDirX / distance;
+            float normY = newDirY / distance;
+            float velocityX = normX * MISSILE_SPEED_SPS;
+            float velocityY = normY * MISSILE_SPEED_SPS;
+            Missile* pMissile = new Missile(_pPlayerMissileBitmap, globalBounds, startPos, velocityX, velocityY);
+            pMissile->SetPosition(startPos.x - pMissile->GetWidth() / 2, startPos.y - pMissile->GetHeight() / 2);
+            game_engine->AddSprite(pMissile);
+        }
+        break;
+    }
+
+    case WeaponType::SMG:
+    {
+        m_iFireCooldown = SMG_COOLDOWN; // SMG bekleme sï¿½resini ayarla
+
+        // ---- Hï¿½zlï¿½, hafifï¿½e seken tek mermi ateï¿½leme ----
+        POINT startPos = { m_rcPosition.left + GetWidth() / 2, m_rcPosition.top + GetHeight() / 2 };
+        float dirX = static_cast<float>(targetX - startPos.x);
+        float dirY = static_cast<float>(targetY - startPos.y);
+
+        // Hafif bir sekme ekle (Shotgun'dan daha az)
+        float randomSpread = (static_cast<float>(rand()) / RAND_MAX - 0.5f) * 4.0f * (3.14159f / 180.0f);
+        float newDirX = dirX * cos(randomSpread) - dirY * sin(randomSpread);
+        float newDirY = dirX * sin(randomSpread) + dirY * cos(randomSpread);
+
+        float distance = std::sqrt(newDirX * newDirX + newDirY * newDirY);
+        if (distance == 0) return;
+
+        float normX = newDirX / distance;
+        float normY = newDirY / distance;
+        float velocityX = normX * MISSILE_SPEED_SPS;
+        float velocityY = normY * MISSILE_SPEED_SPS;
+        Missile* pMissile = new Missile(_pPlayerMissileBitmap, globalBounds, startPos, velocityX, velocityY);
+        pMissile->SetPosition(startPos.x - pMissile->GetWidth() / 2, startPos.y - pMissile->GetHeight() / 2);
+        game_engine->AddSprite(pMissile);
+        break;
+    }
+    }
+}
+
+
+void Player::HandleInput(float fDeltaTime)
+{
+    // --- Silah Deï¿½iï¿½tirme Kontrolï¿½ ---
+    if (GetAsyncKeyState('1') & 0x8000) SwitchWeapon(WeaponType::PISTOL);
+    if (GetAsyncKeyState('2') & 0x8000) SwitchWeapon(WeaponType::SHOTGUN);
+    if (GetAsyncKeyState('3') & 0x8000) SwitchWeapon(WeaponType::SMG);
+
+    // --- HIZ BELï¿½RLEME (SPRINT KONTROLï¿½) ---
+    float currentSpeed = m_fSpeed; // Varsayï¿½lan hï¿½z normal yï¿½rï¿½me hï¿½zï¿½dï¿½r.
+
+    // Eï¿½er sol SHIFT tuï¿½una basï¿½lï¿½yorsa...
+    if (GetAsyncKeyState(VK_LSHIFT) & 0x8000)
+    {
+        // Hï¿½zï¿½, sprint hï¿½zï¿½yla gï¿½ncelle.
+        currentSpeed *= SPRINT_SPEED_MULTIPLIER;
+    }
+    // -----------------------------------------
+
+
+    // --- Hareket Kontrolï¿½ ---
+    float dirX = 0.0f;
+    float dirY = 0.0f;
+    if (GetAsyncKeyState('W') & 0x8000) dirY = -1.0f;
+    if (GetAsyncKeyState('S') & 0x8000) dirY = 1.0f;
+    if (GetAsyncKeyState('A') & 0x8000) dirX = -1.0f;
+    if (GetAsyncKeyState('D') & 0x8000) dirX = 1.0f;
+
+    if (dirX != 0.0f || dirY != 0.0f)
+    {
+        // Yï¿½n vektï¿½rï¿½nï¿½ normalize et
+        float length = std::sqrt(dirX * dirX + dirY * dirY);
+        if (length > 0) {
+            dirX /= length;
+            dirY /= length;
+        }
+
+        // HAREKET HESAPLAMASINDA Gï¿½NCEL HIZI KULLAN
+        float moveAmountX = currentSpeed * dirX * fDeltaTime;
+        float moveAmountY = currentSpeed * dirY * fDeltaTime;
+
+        float newX = m_rcPosition.left + moveAmountX;
+        float newY = m_rcPosition.top + moveAmountY;
+        RECT rcNewPos = { (int)newX, (int)newY, (int)newX + GetWidth(), (int)newY + GetHeight() };
+
+        // Duvar ï¿½arpï¿½ï¿½ma kontrolï¿½
+        if (!m_pMaze->IsWall(rcNewPos.left / TILE_SIZE, rcNewPos.top / TILE_SIZE) &&
+            !m_pMaze->IsWall((rcNewPos.right - 1) / TILE_SIZE, rcNewPos.top / TILE_SIZE) &&
+            !m_pMaze->IsWall(rcNewPos.left / TILE_SIZE, (rcNewPos.bottom - 1) / TILE_SIZE) &&
+            !m_pMaze->IsWall((rcNewPos.right - 1) / TILE_SIZE, (rcNewPos.bottom - 1) / TILE_SIZE))
+        {
+            SetPosition((int)newX, (int)newY);
+        }
+    }
+}

@@ -30,7 +30,7 @@ struct Tile {
 
 extern HINSTANCE   instance;
 extern GameEngine* game_engine;
-extern Player* charSprite;
+extern Sprite* charSprite;
 extern MazeGenerator* mazeGenerator;
 extern Bitmap* _pEnemyMissileBitmap;
 extern int TILE_SIZE;
@@ -56,14 +56,13 @@ extern int window_X, window_Y;
 
 //Functions to be used
 
-void GenerateLevel(int level); // Renamed for clarity, as it does more than generate a maze
 void GenerateMaze(Bitmap* tileBit);
 void AddNonCollidableTile(int x, int y, Bitmap* bitmap);
 void CenterCameraOnSprite(Sprite* sprite);
 void CleanupLevel(); // Good practice to have a function to clear old sprites
 void LoadBitmaps(HDC hDC);
 
-// Yeni seviye oluþturma fonksiyonu
+// Yeni seviye oluï¿½turma fonksiyonu
 void OnLevelComplete();
 
 #endif //GAME_H
