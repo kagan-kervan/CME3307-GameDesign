@@ -768,8 +768,8 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
         if (otherType == SPRITE_TYPE_ENEMY) {
             Enemy* pEnemy = static_cast<Enemy*>(pOtherSpriteForPlayer);
             if (pEnemy) {
-                if (pEnemy->GetEnemyType() == EnemyType::CHASER) pPlayer->TakeDamage(10);
-                else if (pEnemy->GetEnemyType() == EnemyType::TURRET) pPlayer->TakeDamage(5); // Turret temas hasarı
+                if (pEnemy->GetEnemyType() == EnemyType::CHASER) pPlayer->TakeDamage(1);
+                else if (pEnemy->GetEnemyType() == EnemyType::TURRET) pPlayer->TakeDamage(1); // Turret temas hasarı
             }
             return TRUE; // Hareketi engelle
         }
