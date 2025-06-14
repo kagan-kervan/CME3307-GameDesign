@@ -29,6 +29,10 @@ Player::Player(Bitmap* pBitmap, MazeGenerator* pMaze)
     m_bHasSecondWeapon = false;
     m_iSecondaryAmmo = 0;
     m_currentWeapon = WeaponType::PISTOL;
+
+    m_iPistolAmmo = 100;
+    m_iShotgunAmmo = 25;
+    m_iSMGAmmo = 150;
 }
 
 SPRITEACTION Player::Update()
@@ -129,6 +133,23 @@ void Player::HandleInput(float fDeltaTime)
 void Player::Fire(int targetX, int targetY)
 {
     if (m_iFireCooldown > 0 || !_pPlayerMissileBitmap || !game_engine) return;
+
+    switch (m_currentWeapon)
+    {
+    case WeaponType::PISTOL:
+        if (m_iPistolAmmo <= 0) return;
+        m_iPistolAmmo--;
+        break;
+    case WeaponType::SHOTGUN:
+        if (m_iShotgunAmmo < 5) return; // 5 saçma atılıyor
+        m_iShotgunAmmo -= 5;
+        break;
+    case WeaponType::SMG:
+        if (m_iSMGAmmo <= 0) return;
+        m_iSMGAmmo--;
+        break;
+    }
+
 
     POINT startPos = { m_rcPosition.left + GetWidth() / 2, m_rcPosition.top + GetHeight() / 2 };
     float baseDirX = static_cast<float>(targetX - startPos.x);
@@ -234,3 +255,7 @@ bool Player::HasSecondWeapon() const { return m_bHasSecondWeapon; }
 
 void Player::AddSecondaryAmmo(int amount) { if (m_bHasSecondWeapon) m_iSecondaryAmmo += amount; }
 int  Player::GetSecondaryAmmo() const { return m_iSecondaryAmmo; }
+
+int Player::GetPistolAmmo() const { return m_iPistolAmmo; }
+int Player::GetShotgunAmmo() const { return m_iShotgunAmmo; }
+int Player::GetSMGAmmo() const { return m_iSMGAmmo; }

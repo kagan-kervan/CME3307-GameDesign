@@ -305,6 +305,15 @@ void GamePaint(HDC hDC)
             std::wstring keysText = L"Keys: " + std::to_wstring(pPlayer->GetKeys());
             TextOutW(hDC, 10, 70, keysText.c_str(), static_cast<int>(keysText.length()));
 
+            std::wstring PistolAmmoText = L"Pis A: " + std::to_wstring(pPlayer->GetPistolAmmo());
+            TextOutW(hDC, 10, 90, PistolAmmoText.c_str(), static_cast<int>(PistolAmmoText.length()));
+
+            std::wstring ShotgunAmmoText = L"Shot A: " + std::to_wstring(pPlayer->GetShotgunAmmo());
+            TextOutW(hDC, 10, 110, ShotgunAmmoText.c_str(), static_cast<int>(ShotgunAmmoText.length()));
+
+            std::wstring SMGAmmoText = L"SMG A: " + std::to_wstring(pPlayer->GetSMGAmmo());
+            TextOutW(hDC, 10, 130, SMGAmmoText.c_str(), static_cast<int>(SMGAmmoText.length()));
+
             // Eğer oyuncu öldüyse "GAME OVER" yazdır
             if (pPlayer->IsDead()) {
                 SetTextColor(hDC, RGB(255, 0, 0)); // Kırmızı yazı

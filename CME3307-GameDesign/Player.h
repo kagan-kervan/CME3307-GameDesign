@@ -47,6 +47,14 @@ public:
     void TakeDamage(int amount);
     bool IsDead() const { return m_iHealth <= 0; } // Oyuncunun ölüp ölmediğini kontrol et
 
+    int GetPistolAmmo() const;
+    int GetShotgunAmmo() const;
+    int GetSMGAmmo() const;
+
+    void AddPistolAmmo(int amount);
+    void AddShotgunAmmo(int amount);
+    void AddSMGAmmo(int amount);
+
 private:
     MazeGenerator* m_pMaze;
     float m_fSpeed;
@@ -67,4 +75,7 @@ private:
     int m_iScore;
     int m_iSecondaryAmmo;
     bool m_bHasSecondWeapon;
+    int m_iPistolAmmo;
+    int m_iShotgunAmmo;
+    int m_iSMGAmmo;
 };

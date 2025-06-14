@@ -395,14 +395,7 @@ void GameEngine::UpdateSprites()
 
 void GameEngine::CleanupSprites()
 {
-  // Delete and remove the sprites in the sprite vector
-  vector<Sprite*>::iterator siSprite;
-  for (siSprite = m_vSprites.begin(); siSprite != m_vSprites.end(); /* siSprite++ */)
-  {
-    delete (*siSprite);
-    siSprite=m_vSprites.erase(siSprite);
-    //siSprite--;
-  }
+    m_vSprites.clear(); // unique_ptr otomatik siler
 }
 
 Sprite* GameEngine::IsPointInSprite(int x, int y)
