@@ -17,7 +17,7 @@ public:
     // HAREKET HATASI DÜZELTÝLDÝ: Kurucu metoda harita sýnýrlarý eklendi.
     Enemy(Bitmap* pBitmap, RECT& rcBounds, BOUNDSACTION baBoundsAction,
         MazeGenerator* pMaze, Sprite* pPlayer, EnemyType type);
-
+    EnemyType GetEnemyType() const { return m_type; };
     virtual SPRITEACTION Update();
 
 private:
