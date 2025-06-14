@@ -6,20 +6,21 @@
 #include "Enemy.h"
 #include <random>
 #include <limits> // std::numeric_limits için eklendi
-#include <cmath>  // sqrt, pow için eklendi (SpawnEnemyNearClosest içinde kullanılabilir)
-#undef max
+#include <cmath>  // sqrt, pow için eklendi
+#include <algorithm>
+#undef max // Windows.h'daki max ile std::max çakışmasını önlemek için
+#undef min
 //--------------------------------------------------
 //Global Variable Definitions
 //--------------------------------------------------
 std::vector<Tile> nonCollidableTiles;
 RECT globalBounds = { 0,0,4000,4000 };
 
-// Düşman spawn zamanlayıcıları ve intervalleri
 DWORD g_dwLastSpawnTime = 0;
-const DWORD ENEMY_SPAWN_INTERVAL = 15000; // 15 saniye (milisaniye cinsinden) - DEĞİŞTİRİLDİ
+const DWORD ENEMY_SPAWN_INTERVAL = 7000;
 
-DWORD g_dwLastClosestEnemySpawnTime = 0; // YENİ: En yakın düşmandan spawn için zamanlayıcı
-const DWORD CLOSEST_ENEMY_SPAWN_INTERVAL = 6000; // 6 saniye (milisaniye cinsinden) - YENİ
+DWORD g_dwLastClosestEnemySpawnTime = 0;
+const DWORD CLOSEST_ENEMY_SPAWN_INTERVAL = 3000;
 
 GameEngine* game_engine;
 Player* charSprite;
@@ -36,7 +37,7 @@ Bitmap* charBitmap;
 Bitmap* _pEnemyBitmap;
 HINSTANCE   instance;
 int window_X, window_Y;
-extern RECT globalBounds;
+// extern RECT globalBounds; // Zaten yukarıda tanımlı
 Bitmap* _pPlayerMissileBitmap;
 
 
@@ -51,6 +52,23 @@ Bitmap* secondWeaponBitmap = nullptr;
 
 bool isLevelFinished = false;
 int currentLevel;
+
+// YARDIMCI FONKSİYON: Belirtilen bir RECT alanının labirentte tamamen boş olup olmadığını kontrol eder
+// Düşmanın tüm köşelerinin duvar içinde olmamasını sağlar.
+bool IsAreaClearForSpawn(int tileX, int tileY, int spriteWidthInTiles, int spriteHeightInTiles) {
+    if (!mazeGenerator || TILE_SIZE == 0) return false;
+
+    // Düşmanın kaplayacağı tüm tile'ları kontrol et
+    for (int y = 0; y < spriteHeightInTiles; ++y) {
+        for (int x = 0; x < spriteWidthInTiles; ++x) {
+            if (mazeGenerator->IsWall(tileX + x, tileY + y)) {
+                return false; // Herhangi bir kısmı duvardaysa, alan temiz değil
+            }
+        }
+    }
+    return true; // Tüm alan boş
+}
+
 
 BOOL GameInitialize(HINSTANCE hInst)
 {
@@ -73,10 +91,10 @@ Camera::Camera(Sprite* target, int w, int h)
     if (m_pTarget)
     {
         RECT pos = m_pTarget->GetPosition();
-        m_fCurrentX = (float)(pos.left + m_pTarget->GetWidth() / 2 - width / 2);
-        m_fCurrentY = (float)(pos.top + m_pTarget->GetHeight() / 2 - height / 2);
-        x = (int)m_fCurrentX;
-        y = (int)m_fCurrentY;
+        m_fCurrentX = static_cast<float>(pos.left + m_pTarget->GetWidth() / 2 - width / 2);
+        m_fCurrentY = static_cast<float>(pos.top + m_pTarget->GetHeight() / 2 - height / 2);
+        x = static_cast<int>(m_fCurrentX);
+        y = static_cast<int>(m_fCurrentY);
     }
     else
     {
@@ -90,14 +108,14 @@ void Camera::Update()
     if (!m_pTarget) return;
 
     RECT pos = m_pTarget->GetPosition();
-    float targetX = (float)(pos.left + m_pTarget->GetWidth() / 2 - width / 2);
-    float targetY = (float)(pos.top + m_pTarget->GetHeight() / 2 - height / 2);
+    float targetX = static_cast<float>(pos.left + m_pTarget->GetWidth() / 2 - width / 2);
+    float targetY = static_cast<float>(pos.top + m_pTarget->GetHeight() / 2 - height / 2);
 
     m_fCurrentX += (targetX - m_fCurrentX) * m_fLerpFactor;
     m_fCurrentY += (targetY - m_fCurrentY) * m_fLerpFactor;
 
-    x = (int)round(m_fCurrentX);
-    y = (int)round(m_fCurrentY);
+    x = static_cast<int>(round(m_fCurrentX));
+    y = static_cast<int>(round(m_fCurrentY));
 }
 
 void GameStart(HWND hWindow)
@@ -110,62 +128,96 @@ void GameStart(HWND hWindow)
 
     HDC hDC = GetDC(hWindow);
     LoadBitmaps(hDC);
-    _pPlayerMissileBitmap = new Bitmap(hDC, IDB_MISSILE, instance);
-    TILE_SIZE = wallBitmap->GetHeight(); // TILE_SIZE burada atanıyor
+    if (!_pPlayerMissileBitmap && instance) // instance null değilse yükle
+        _pPlayerMissileBitmap = new Bitmap(hDC, IDB_MISSILE, instance);
+
+    if (wallBitmap) TILE_SIZE = wallBitmap->GetHeight(); else TILE_SIZE = 50; // wallBitmap yoksa varsayılan
+
     background = new Background(window_X, window_Y, RGB(0, 0, 0));
-    mazeGenerator = new MazeGenerator(15, 15);
-    charSprite = new Player(charBitmap, mazeGenerator);
+    mazeGenerator = new MazeGenerator(15, 15); // Labirent boyutu
+
+    if (charBitmap && mazeGenerator) // Null kontrolü
+        charSprite = new Player(charBitmap, mazeGenerator);
+
     currentLevel = 1;
-    GenerateLevel(currentLevel); // TILE_SIZE atandıktan sonra çağrılıyor
-    game_engine->AddSprite(charSprite);
+    GenerateLevel(currentLevel);
 
-    camera = new Camera(charSprite, window_X, window_Y);
-    fovEffect = new FOVBackground(charSprite, 90, 350, 75);
+    if (game_engine && charSprite) // Null kontrolü
+        game_engine->AddSprite(charSprite);
+
+    if (charSprite) // Null kontrolü
+        camera = new Camera(charSprite, window_X, window_Y);
+
+    if (charSprite) // Null kontrolü
+        fovEffect = new FOVBackground(charSprite, 90, 350, 75);
 
 
-    for (int i = 0; i < 5; i++)
-    {
-        EnemyType type = (i < 2) ? EnemyType::TURRET : EnemyType::CHASER;
-        Enemy* pEnemy = new Enemy(_pEnemyBitmap, globalBounds, BA_STOP,
-            mazeGenerator, charSprite, type);
-        int ex, ey;
-        do {
-            ex = (rand() % (mazeGenerator->GetMaze()[0].size())); // Labirent genişliğine göre
-            ey = (rand() % (mazeGenerator->GetMaze().size()));    // Labirent yüksekliğine göre
-        } while (mazeGenerator->IsWall(ex, ey));
+    // Başlangıç düşmanları
+    if (mazeGenerator && _pEnemyBitmap && charSprite && game_engine && TILE_SIZE > 0) {
+        const auto& mazeData = mazeGenerator->GetMaze();
+        if (!mazeData.empty() && !mazeData[0].empty()) {
+            int enemySpriteWidthInTiles = (_pEnemyBitmap->GetWidth() + TILE_SIZE - 1) / TILE_SIZE;
+            int enemySpriteHeightInTiles = (_pEnemyBitmap->GetHeight() + TILE_SIZE - 1) / TILE_SIZE;
 
-        pEnemy->SetPosition(ex * TILE_SIZE, ey * TILE_SIZE);
-        game_engine->AddSprite(pEnemy);
+            for (int i = 0; i < 5; i++)
+            {
+                EnemyType type = (i < 2) ? EnemyType::TURRET : EnemyType::CHASER;
+                Enemy* pEnemy = new Enemy(_pEnemyBitmap, globalBounds, BA_STOP,
+                    mazeGenerator, charSprite, type);
+                int ex, ey;
+                int tryCount = 0;
+                const int maxSpawnTries = 50; // Daha fazla deneme şansı
+                do {
+                    ex = (rand() % (mazeData[0].size() - enemySpriteWidthInTiles + 1)); // Sprite'ın taşmamasını sağla
+                    ey = (rand() % (mazeData.size() - enemySpriteHeightInTiles + 1));    // Sprite'ın taşmamasını sağla
+                    tryCount++;
+                } while (!IsAreaClearForSpawn(ex, ey, enemySpriteWidthInTiles, enemySpriteHeightInTiles) && tryCount < maxSpawnTries);
+
+                if (tryCount < maxSpawnTries) { // Geçerli bir yer bulunduysa
+                    pEnemy->SetPosition(ex * TILE_SIZE, ey * TILE_SIZE);
+                    game_engine->AddSprite(pEnemy);
+                }
+                else {
+                    delete pEnemy; // Yer bulunamadıysa düşmanı sil
+                }
+            }
+        }
     }
 }
 
 void GameEnd()
 {
-    game_engine->CloseMIDIPlayer();
-    DeleteObject(offscreenBitmap);
-    DeleteDC(offscreenDC);
-    delete _pEnemyMissileBitmap;
-    delete background;
-    game_engine->CleanupSprites();
-    delete game_engine;
+    if (game_engine) game_engine->CloseMIDIPlayer();
 
-    // Diğer bitmap'lerin de silinmesi gerekiyor
-    delete wallBitmap;
-    delete charBitmap;
-    delete _pEnemyBitmap;
-    delete healthPWBitmap;
-    delete ammoPWBitmap;
-    delete pointPWBitmap;
-    delete armorPWBitmap;
-    delete floorBitmap;
-    delete keyBitmap;
-    delete endPointBitmap;
-    delete _pPlayerMissileBitmap;
-    // secondWeaponBitmap null değilse silinmeli
-    // if (secondWeaponBitmap) delete secondWeaponBitmap;
-    delete mazeGenerator;
-    delete camera;
-    delete fovEffect;
+    if (offscreenBitmap) DeleteObject(offscreenBitmap);
+    if (offscreenDC) DeleteDC(offscreenDC);
+
+    delete _pEnemyMissileBitmap; _pEnemyMissileBitmap = nullptr;
+    delete background; background = nullptr;
+
+    if (game_engine) {
+        game_engine->CleanupSprites(); // Bu, charSprite dahil tüm spriteları siler
+        charSprite = nullptr; // charSprite artık GameEngine tarafından yönetiliyor ve silindi
+        delete game_engine; game_engine = nullptr;
+    }
+
+
+    delete wallBitmap; wallBitmap = nullptr;
+    delete charBitmap; charBitmap = nullptr; // charSprite silindiği için bu da silinebilir
+    delete _pEnemyBitmap; _pEnemyBitmap = nullptr;
+    delete healthPWBitmap; healthPWBitmap = nullptr;
+    delete ammoPWBitmap; ammoPWBitmap = nullptr;
+    delete pointPWBitmap; pointPWBitmap = nullptr;
+    delete armorPWBitmap; armorPWBitmap = nullptr;
+    delete floorBitmap; floorBitmap = nullptr;
+    delete keyBitmap; keyBitmap = nullptr;
+    delete endPointBitmap; endPointBitmap = nullptr;
+    delete _pPlayerMissileBitmap; _pPlayerMissileBitmap = nullptr;
+    // if (secondWeaponBitmap) { delete secondWeaponBitmap; secondWeaponBitmap = nullptr; }
+
+    delete mazeGenerator; mazeGenerator = nullptr;
+    delete camera; camera = nullptr;
+    delete fovEffect; fovEffect = nullptr;
 }
 
 void GameActivate(HWND hWindow)
@@ -178,26 +230,21 @@ void GameDeactivate(HWND hWindow)
 
 void GamePaint(HDC hDC)
 {
-    background->Draw(hDC, 0, 0);
+    if (background && camera) background->Draw(hDC, 0, 0); // Arka plan kameradan bağımsız
 
     for (const auto& tile : nonCollidableTiles) {
-        // tile.bitmap null değilse çiz
-        if (tile.bitmap)
+        if (tile.bitmap && camera)
             tile.bitmap->Draw(hDC, tile.x - camera->x, tile.y - camera->y, TRUE);
     }
 
-    // Draw all sprites with camera offset
-    // game_engine->GetSprites() çağrısı bir kopya döndürmemeli, referans olmalı.
-    // GameEngine sınıfında GetSprites() const std::vector<Sprite*>& GetSprites() const; olmalı ya da
-    // for (Sprite* sprite : game_engine->GetSprites()) yerine
-    // const auto& sprites = game_engine->GetSprites(); for (Sprite* sprite : sprites)
-    for (Sprite* sprite : game_engine->GetSprites()) { // Bu satırda GetSprites() çağrılıyor
-        if (sprite) // Sprite null değilse çiz
-            sprite->Draw(hDC, camera->x, camera->y);
+    if (game_engine && camera) {
+        for (Sprite* sprite : game_engine->GetSprites()) {
+            if (sprite)
+                sprite->Draw(hDC, camera->x, camera->y);
+        }
     }
 
-
-    if (fovEffect) // fovEffect null değilse çiz
+    if (fovEffect && camera)
         fovEffect->Draw(hDC, camera->x, camera->y);
 }
 
@@ -210,14 +257,12 @@ void GameCycle()
     if (background) background->Update();
     if (game_engine) game_engine->UpdateSprites();
 
-    // Düşman spawn etme mantığı - Rastgele spawn
     if (GetTickCount() > g_dwLastSpawnTime + ENEMY_SPAWN_INTERVAL)
     {
         SpawnEnemyNearPlayer();
         g_dwLastSpawnTime = GetTickCount();
     }
 
-    // YENİ: Oyuncuya en yakın düşmandan spawn etme mantığı
     if (GetTickCount() > g_dwLastClosestEnemySpawnTime + CLOSEST_ENEMY_SPAWN_INTERVAL)
     {
         SpawnEnemyNearClosest();
@@ -234,15 +279,20 @@ void GameCycle()
         fovEffect->Update(camera->x, camera->y);
     }
 
-    HWND  hWindow = game_engine->GetWindow();
-    HDC   hDC = GetDC(hWindow);
+    if (game_engine) {
+        HWND  hWindow = game_engine->GetWindow();
+        if (hWindow) { // hWindow null kontrolü
+            HDC   hDC = GetDC(hWindow);
+            if (hDC) { // hDC null kontrolü
+                GamePaint(offscreenDC); // offscreenDC'ye çiz
 
-    GamePaint(offscreenDC);
+                BitBlt(hDC, 0, 0, game_engine->GetWidth(), game_engine->GetHeight(),
+                    offscreenDC, 0, 0, SRCCOPY);
 
-    BitBlt(hDC, 0, 0, game_engine->GetWidth(), game_engine->GetHeight(),
-        offscreenDC, 0, 0, SRCCOPY);
-
-    ReleaseDC(hWindow, hDC);
+                ReleaseDC(hWindow, hDC);
+            }
+        }
+    }
 }
 
 void SpawnEnemyNearPlayer()
@@ -255,31 +305,36 @@ void SpawnEnemyNearPlayer()
 
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> distr(-5, 5); // Oyuncunun +/- 5 tile uzağında bir yer
+    std::uniform_int_distribution<> distr(-7, 7); // Arama alanını biraz genişletelim
 
     int spawnTileX, spawnTileY;
     int tryCount = 0;
-    const int maxTries = 20;
+    const int maxTries = 30; // Deneme sayısını artıralım
 
     const auto& mazeData = mazeGenerator->GetMaze();
-    if (mazeData.empty() || mazeData[0].empty()) return; // Labirent verisi yoksa çık
+    if (mazeData.empty() || mazeData[0].empty()) return;
     int mazeWidthInTiles = mazeData[0].size();
     int mazeHeightInTiles = mazeData.size();
+
+    // Düşman sprite'ının tile cinsinden boyutları
+    int enemySpriteWidthInTiles = (_pEnemyBitmap->GetWidth() + TILE_SIZE - 1) / TILE_SIZE; // Yukarı yuvarla
+    int enemySpriteHeightInTiles = (_pEnemyBitmap->GetHeight() + TILE_SIZE - 1) / TILE_SIZE; // Yukarı yuvarla
+
 
     do {
         spawnTileX = playerTileX + distr(gen);
         spawnTileY = playerTileY + distr(gen);
         tryCount++;
 
-        // Labirent sınırları içinde mi kontrol et
-        if (spawnTileX < 0 || spawnTileX >= mazeWidthInTiles ||
-            spawnTileY < 0 || spawnTileY >= mazeHeightInTiles) {
-            continue; // Sınır dışındaysa yeni koordinat üret
+        // Labirent sınırları içinde mi ve sprite taşmıyor mu kontrol et
+        if (spawnTileX < 0 || spawnTileX + enemySpriteWidthInTiles > mazeWidthInTiles ||
+            spawnTileY < 0 || spawnTileY + enemySpriteHeightInTiles > mazeHeightInTiles) {
+            continue;
         }
-    } while (mazeGenerator->IsWall(spawnTileX, spawnTileY) && tryCount < maxTries);
+        // DÜZELTME: IsAreaClearForSpawn çağrısını kullan
+    } while (!IsAreaClearForSpawn(spawnTileX, spawnTileY, enemySpriteWidthInTiles, enemySpriteHeightInTiles) && tryCount < maxTries);
 
-    // Geçerli bir yer bulunduysa ve duvar değilse düşmanı oluştur
-    if (tryCount < maxTries && !mazeGenerator->IsWall(spawnTileX, spawnTileY))
+    if (tryCount < maxTries) // Geçerli bir yer bulunduysa
     {
         EnemyType type = (rand() % 2 == 0) ? EnemyType::TURRET : EnemyType::CHASER;
         Enemy* pEnemy = new Enemy(_pEnemyBitmap, globalBounds, BA_STOP,
@@ -290,7 +345,6 @@ void SpawnEnemyNearPlayer()
     }
 }
 
-// YENİ FONKSİYON: Oyuncuya en yakın düşmandan yeni bir düşman spawn eder
 void SpawnEnemyNearClosest()
 {
     if (!mazeGenerator || !charSprite || !_pEnemyBitmap || !game_engine || game_engine->GetSprites().empty() || TILE_SIZE == 0) return;
@@ -304,7 +358,7 @@ void SpawnEnemyNearClosest()
 
     for (Sprite* sprite : game_engine->GetSprites())
     {
-        if (sprite && sprite->GetType() == SPRITE_TYPE_ENEMY) // sprite null kontrolü eklendi
+        if (sprite && sprite->GetType() == SPRITE_TYPE_ENEMY)
         {
             Enemy* currentEnemy = static_cast<Enemy*>(sprite);
             RECT enemyRect = currentEnemy->GetPosition();
@@ -329,41 +383,41 @@ void SpawnEnemyNearClosest()
         int enemyTileX = enemyPos.left / TILE_SIZE;
         int enemyTileY = enemyPos.top / TILE_SIZE;
 
-        int spawnTileX = enemyTileX;
-        int spawnTileY = enemyTileY;
+        // Düşman sprite'ının tile cinsinden boyutları
+        int enemySpriteWidthInTiles = (_pEnemyBitmap->GetWidth() + TILE_SIZE - 1) / TILE_SIZE;
+        int enemySpriteHeightInTiles = (_pEnemyBitmap->GetHeight() + TILE_SIZE - 1) / TILE_SIZE;
 
-        const auto& mazeData = mazeGenerator->GetMaze();
-        if (mazeData.empty() || mazeData[0].empty()) return;
-        int mazeWidthInTiles = mazeData[0].size();
-        int mazeHeightInTiles = mazeData.size();
-
-        if (spawnTileX >= 0 && spawnTileX < mazeWidthInTiles &&
-            spawnTileY >= 0 && spawnTileY < mazeHeightInTiles &&
-            !mazeGenerator->IsWall(spawnTileX, spawnTileY))
+        // Spawn konumu olarak en yakın düşmanın mevcut tile'ını kullanıyoruz.
+        // Bu tile'ın boş olduğundan emin olmalıyız.
+        if (IsAreaClearForSpawn(enemyTileX, enemyTileY, enemySpriteWidthInTiles, enemySpriteHeightInTiles))
         {
             EnemyType type = (rand() % 2 == 0) ? EnemyType::TURRET : EnemyType::CHASER;
             Enemy* newEnemy = new Enemy(_pEnemyBitmap, globalBounds, BA_STOP,
                 mazeGenerator, charSprite, type);
-            newEnemy->SetPosition(spawnTileX * TILE_SIZE, spawnTileY * TILE_SIZE);
+            // Yeni düşmanı, eski düşmanla aynı tile'a yerleştir.
+            // Bu, üst üste binmelerine neden olabilir, bu istenmiyorsa farklı bir boş tile aranmalı.
+            // Şimdilik aynı yere koyuyoruz, çünkü `SpriteCollision` içinde düşmanların çarpışmadığı varsayılıyor.
+            newEnemy->SetPosition(enemyTileX * TILE_SIZE, enemyTileY * TILE_SIZE);
             game_engine->AddSprite(newEnemy);
         }
+        // Eğer en yakın düşmanın olduğu yer doluysa (bu pek olası değil ama),
+        // alternatif bir spawn mantığı eklenebilir (örneğin etrafındaki boş bir tile'a).
     }
 }
 
 void HandleKeys()
 {
-    // Player sınıfı kendi içinde HandleInput ile bunu yönetiyor
 }
 
 void MouseButtonDown(int x, int y, BOOL bLeft)
 {
-    if (bLeft && camera && charSprite) // Null kontrolleri
+    if (bLeft && camera && charSprite)
     {
         int targetWorldX = x + camera->x;
         int targetWorldY = y + camera->y;
 
         Player* pPlayer = static_cast<Player*>(charSprite);
-        if (pPlayer) // pPlayer null değilse Fire çağır
+        if (pPlayer)
         {
             pPlayer->Fire(targetWorldX, targetWorldY);
         }
@@ -383,37 +437,31 @@ void MouseMove(int x, int y)
 void HandleJoystick(JOYSTATE jsJoystickState) {
 }
 
-void GenerateMaze(Bitmap* tileBit) { // tileBit parametresi artık kullanılmıyor gibi, GenerateLevel'a bakılmalı
+// GenerateMaze fonksiyonu büyük ölçüde GenerateLevel tarafından kapsandığı için
+// ve item/diğer tile yerleşimlerini yapmadığı için ya basitleştirilmeli ya da kaldırılmalı.
+// Şimdilik bırakıyorum ama GenerateLevel ana odak olmalı.
+void GenerateMaze(Bitmap* tileBit) {
     if (!mazeGenerator || !wallBitmap || !game_engine || TILE_SIZE == 0) return;
 
-    mazeGenerator->generateMaze(); // Bu fonksiyon artık sadece duvar ve yol oluşturuyor olmalı.
-    // Item yerleşimi SetupLevel içinde.
+    mazeGenerator->generateMaze();
     const std::vector<std::vector<int>>& mazeArray = mazeGenerator->GetMaze();
     if (mazeArray.empty() || mazeArray[0].empty()) return;
 
-
-    int tile_width = TILE_SIZE;  // wallBitmap->GetWidth() yerine TILE_SIZE kullanıldı
-    int tile_height = TILE_SIZE; // wallBitmap->GetHeight() yerine TILE_SIZE kullanıldı
+    int tile_width = TILE_SIZE;
+    int tile_height = TILE_SIZE;
     RECT rcBounds = { 0, 0, static_cast<long>(mazeArray[0].size() * tile_width), static_cast<long>(mazeArray.size() * tile_height) };
 
-
-    for (size_t y = 0; y < mazeArray.size(); ++y) {
-        for (size_t x = 0; x < mazeArray[y].size(); ++x) {
-            int posX = x * tile_width;
-            int posY = y * tile_height;
-            if (mazeArray[y][x] == static_cast<int>(TileType::WALL)) { // TileType enum'u ile karşılaştır
+    for (size_t r = 0; r < mazeArray.size(); ++r) { // y yerine r (row)
+        for (size_t c = 0; c < mazeArray[r].size(); ++c) { // x yerine c (column)
+            int posX = c * tile_width;
+            int posY = r * tile_height;
+            // mazeArray[y][x] yerine mazeArray[r][c]
+            if (mazeArray[r][c] == static_cast<int>(TileType::WALL)) {
                 POINT pos = { posX, posY };
                 Sprite* wall = new Sprite(wallBitmap, rcBounds, BA_STOP, SPRITE_TYPE_WALL);
                 wall->SetPosition(pos);
                 game_engine->AddSprite(wall);
             }
-            // Diğer tile'lar (yol, item vb.) GenerateLevel içinde ele alınıyor.
-            // Bu fonksiyon artık sadece duvarları eklemeli veya hiç kullanılmamalı,
-            // çünkü GenerateLevel tüm seviye oluşturma mantığını içeriyor.
-            // Şimdilik, sadece duvar ekleme kısmını bırakıyorum.
-            // else {
-            //    AddNonCollidableTile(posX, posY, floorBitmap); // tileBit yerine floorBitmap
-            // }
         }
     }
 }
@@ -424,13 +472,13 @@ void GenerateLevel(int level) {
         return;
     }
 
-    // Önceki seviyeden kalanları temizle (eğer bu ilk seviye değilse veya yeniden oluşturuluyorsa)
-    // CleanupLevel(); // Bu çağrı, oyuncu ve diğer kalıcı spriteların korunmasını sağlamalı.
+    // Önceki seviyenin spritelarını temizle (oyuncu hariç)
+    CleanupLevel(); // Bu fonksiyon oyuncuyu koruyacak şekilde güncellenmeli
 
     mazeGenerator->SetupLevel(level);
     const auto& mazeArray = mazeGenerator->GetMaze();
     if (mazeArray.empty() || mazeArray[0].empty()) {
-        game_engine->ErrorQuit(TEXT("Maze data is empty after SetupLevel!"));
+        if (game_engine) game_engine->ErrorQuit(TEXT("Maze data is empty after SetupLevel!"));
         return;
     }
 
@@ -439,12 +487,14 @@ void GenerateLevel(int level) {
 
     RECT rcBounds = { 0, 0, static_cast<long>(mazeArray[0].size() * tile_width), static_cast<long>(mazeArray.size() * tile_height) };
 
-    for (size_t y = 0; y < mazeArray.size(); ++y) {
-        for (size_t x = 0; x < mazeArray[y].size(); ++x) {
-            int posX = x * tile_width;
-            int posY = y * tile_height;
+    for (size_t r = 0; r < mazeArray.size(); ++r) {
+        for (size_t c = 0; c < mazeArray[r].size(); ++c) {
+            int posX = c * tile_width;
+            int posY = r * tile_height;
             POINT pos = { posX, posY };
-            int tileValue = mazeArray[y][x];
+            int tileValue = mazeArray[r][c];
+
+            Bitmap* itemBitmap = nullptr; // Geçici bitmap pointer'ı
 
             switch (static_cast<TileType>(tileValue)) {
             case TileType::WALL: {
@@ -453,127 +503,86 @@ void GenerateLevel(int level) {
                 game_engine->AddSprite(wall);
                 break;
             }
-            case TileType::KEY: {
-                if (!keyBitmap) break; // Bitmap yoksa atla
-                Sprite* key = new Sprite(keyBitmap, rcBounds, BA_STOP, SPRITE_TYPE_GENERIC); // Tip önemli olabilir
-                key->SetPosition(pos);
-                game_engine->AddSprite(key);
-                if (floorBitmap) AddNonCollidableTile(posX, posY, floorBitmap);
-                break;
-            }
-            case TileType::HEALTH_PACK: {
-                if (!healthPWBitmap) break;
-                Sprite* item = new Sprite(healthPWBitmap, rcBounds, BA_STOP, SPRITE_TYPE_GENERIC);
-                item->SetPosition(pos);
-                game_engine->AddSprite(item);
-                if (floorBitmap) AddNonCollidableTile(posX, posY, floorBitmap);
-                break;
-            }
-            case TileType::ARMOR_PACK: {
-                if (!armorPWBitmap) break;
-                Sprite* item = new Sprite(armorPWBitmap, rcBounds, BA_STOP, SPRITE_TYPE_GENERIC);
-                item->SetPosition(pos);
-                game_engine->AddSprite(item);
-                if (floorBitmap) AddNonCollidableTile(posX, posY, floorBitmap);
-                break;
-            }
-            case TileType::WEAPON_AMMO: {
-                if (!ammoPWBitmap) break;
-                Sprite* item = new Sprite(ammoPWBitmap, rcBounds, BA_STOP, SPRITE_TYPE_GENERIC);
-                item->SetPosition(pos);
-                game_engine->AddSprite(item);
-                if (floorBitmap) AddNonCollidableTile(posX, posY, floorBitmap);
-                break;
-            }
-            case TileType::EXTRA_SCORE: {
-                if (!pointPWBitmap) break;
-                Sprite* item = new Sprite(pointPWBitmap, rcBounds, BA_STOP, SPRITE_TYPE_GENERIC);
-                item->SetPosition(pos);
-                game_engine->AddSprite(item);
-                if (floorBitmap) AddNonCollidableTile(posX, posY, floorBitmap);
-                break;
-            }
-            case TileType::END_POINT: {
-                if (!endPointBitmap) break;
-                Sprite* endPoint = new Sprite(endPointBitmap, rcBounds, BA_STOP, SPRITE_TYPE_GENERIC);
-                endPoint->SetPosition(pos);
-                game_engine->AddSprite(endPoint);
-                if (floorBitmap) AddNonCollidableTile(posX, posY, floorBitmap);
-                break;
-            }
-            case TileType::START_POINT:
+            case TileType::KEY: itemBitmap = keyBitmap; break;
+            case TileType::HEALTH_PACK: itemBitmap = healthPWBitmap; break;
+            case TileType::ARMOR_PACK: itemBitmap = armorPWBitmap; break;
+            case TileType::WEAPON_AMMO: itemBitmap = ammoPWBitmap; break;
+            case TileType::EXTRA_SCORE: itemBitmap = pointPWBitmap; break;
+            case TileType::END_POINT: itemBitmap = endPointBitmap; break;
+                // case TileType::SECOND_WEAPON: itemBitmap = secondWeaponBitmap; break;
+
+            case TileType::START_POINT: // Başlangıç noktasına özel bir şey yapılmıyorsa floor ile aynı
             case TileType::PATH:
             default:
                 if (floorBitmap) AddNonCollidableTile(posX, posY, floorBitmap);
-                break;
+                continue; // switch'ten sonraki item oluşturma kısmını atla
+            }
+
+            // Eğer bir item bitmap'i atandıysa, item sprite'ını oluştur ve zemini çiz
+            if (itemBitmap) {
+                Sprite* item = new Sprite(itemBitmap, rcBounds, BA_STOP, SPRITE_TYPE_GENERIC);
+                item->SetPosition(pos);
+                game_engine->AddSprite(item);
+                if (floorBitmap) AddNonCollidableTile(posX, posY, floorBitmap);
+            }
+            else if (static_cast<TileType>(tileValue) != TileType::WALL) {
+                // Eğer itemBitmap null ise (örn. bitmap yüklenmemişse) ama duvar da değilse,
+                // en azından bir zemin çizelim.
+                if (floorBitmap) AddNonCollidableTile(posX, posY, floorBitmap);
             }
         }
     }
 
-    std::pair<int, int> startPosCoords = mazeGenerator->GetStartPos();
-    if (charSprite != nullptr && startPosCoords.first != -1 && TILE_SIZE > 0) {
-        charSprite->SetPosition(startPosCoords.first * tile_width, startPosCoords.second * tile_height);
+    if (charSprite && mazeGenerator) { // Null kontrolleri
+        std::pair<int, int> startPosCoords = mazeGenerator->GetStartPos();
+        if (startPosCoords.first != -1 && TILE_SIZE > 0) {
+            charSprite->SetPosition(startPosCoords.first * tile_width, startPosCoords.second * tile_height);
+        }
     }
 }
 
 void AddNonCollidableTile(int x, int y, Bitmap* bitmap) {
-    if (bitmap) // bitmap null değilse ekle
+    if (bitmap)
         nonCollidableTiles.push_back({ x, y, bitmap });
 }
 
-// CenterCameraOnSprite fonksiyonu artık Camera sınıfının Update metodu ile yönetiliyor.
-// Bu global fonksiyon kaldırılabilir veya kullanılmamalıdır.
-/*
-void CenterCameraOnSprite(Sprite* sprite) {
-    if (!sprite || !camera) return;
-    RECT pos = sprite->GetPosition();
-    int spriteWidth = sprite->GetWidth();
-    int spriteHeight = sprite->GetHeight();
-    int centerX = pos.left + spriteWidth / 2;
-    int centerY = pos.top + spriteHeight / 2;
-    int camX = centerX - camera->width / 2;
-    int camY = centerY - camera->height / 2;
-    camera->SetPosition(camX, camY);
-}
-*/
 
 void LoadBitmaps(HDC hDC) {
+    if (!hDC) return; // hDC null ise çık
+
     floorBitmap = new Bitmap(hDC, "tile.bmp");
     wallBitmap = new Bitmap(hDC, "wall.bmp");
-    charBitmap = new Bitmap(hDC, IDB_BITMAP3, instance);
-    _pEnemyBitmap = new Bitmap(hDC, IDB_ENEMY, instance);
-    _pEnemyMissileBitmap = new Bitmap(hDC, IDB_BMISSILE, instance);
+    if (instance) { // instance null değilse yükle
+        charBitmap = new Bitmap(hDC, IDB_BITMAP3, instance);
+        _pEnemyBitmap = new Bitmap(hDC, IDB_ENEMY, instance);
+        _pEnemyMissileBitmap = new Bitmap(hDC, IDB_BMISSILE, instance);
+    }
     healthPWBitmap = new Bitmap(hDC, "Health.bmp");
     ammoPWBitmap = new Bitmap(hDC, "Ammo.bmp");
     pointPWBitmap = new Bitmap(hDC, "Point.bmp");
     armorPWBitmap = new Bitmap(hDC, "Armor.bmp");
     keyBitmap = new Bitmap(hDC, "Key.bmp");
     endPointBitmap = new Bitmap(hDC, "Gate.bmp");
-    // secondWeaponBitmap yüklemesi MazeGenerator'da yorumlandığı için burada da kaldırılabilir veya eklenebilir.
 }
 
 BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
 {
-    if (!pSpriteHitter || !pSpriteHittee) return FALSE; // Null kontrolü
+    if (!pSpriteHitter || !pSpriteHittee) return FALSE;
 
     Player* pPlayer = nullptr;
-    Sprite* pOther = nullptr;
+    // Sprite* pOther = nullptr; // Bu değişken artık pSpriteHitter veya pSpriteHittee olacak
 
     SpriteType hitterType = pSpriteHitter->GetType();
     SpriteType hitteeType = pSpriteHittee->GetType();
 
-    // --- DÜŞMANLAR BİRBİRİYLE ÇARPIŞMAZ ---
     if (hitterType == SPRITE_TYPE_ENEMY && hitteeType == SPRITE_TYPE_ENEMY)
     {
-        return FALSE; // Düşmanlar birbirinin üzerinden geçebilir
+        return FALSE;
     }
-    // ------------------------------------
 
-    // Mermilerin kendi aralarında çarpışmaması
     if (hitterType == SPRITE_TYPE_PLAYER_MISSILE && hitteeType == SPRITE_TYPE_PLAYER_MISSILE) return FALSE;
     if (hitterType == SPRITE_TYPE_ENEMY_MISSILE && hitteeType == SPRITE_TYPE_ENEMY_MISSILE) return FALSE;
 
-    // Oyuncu mermisi ile düşman mermisi çarpışması
     if ((hitterType == SPRITE_TYPE_PLAYER_MISSILE && hitteeType == SPRITE_TYPE_ENEMY_MISSILE) ||
         (hitterType == SPRITE_TYPE_ENEMY_MISSILE && hitteeType == SPRITE_TYPE_PLAYER_MISSILE))
     {
@@ -582,109 +591,110 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
         return FALSE;
     }
 
-    // Oyuncu mermisi ile ilgili çarpışmalar
-    if (hitterType == SPRITE_TYPE_PLAYER_MISSILE || hitteeType == SPRITE_TYPE_PLAYER_MISSILE)
-    {
-        Sprite* missile = (hitterType == SPRITE_TYPE_PLAYER_MISSILE) ? pSpriteHitter : pSpriteHittee;
-        Sprite* other = (hitterType == SPRITE_TYPE_PLAYER_MISSILE) ? pSpriteHittee : pSpriteHitter;
-
-        if (other->GetType() == SPRITE_TYPE_WALL) {
-            missile->Kill(); return FALSE;
-        }
-        if (other->GetType() == SPRITE_TYPE_ENEMY) {
-            missile->Kill();
-            other->Kill(); // Düşmanı öldür
-            if (charSprite) static_cast<Player*>(charSprite)->AddScore(10); // Düşman öldürme skoru
+    // Oyuncu mermisi ile çarpışmalar
+    if (hitterType == SPRITE_TYPE_PLAYER_MISSILE) {
+        if (hitteeType == SPRITE_TYPE_WALL) { pSpriteHitter->Kill(); return FALSE; }
+        if (hitteeType == SPRITE_TYPE_ENEMY) {
+            pSpriteHitter->Kill();
+            pSpriteHittee->Kill();
+            if (charSprite) static_cast<Player*>(charSprite)->AddScore(10);
             return FALSE;
         }
-        if (other->GetType() == SPRITE_TYPE_PLAYER) return FALSE; // Oyuncu kendi mermisiyle çarpışmaz
+        // Player_Missile vs Player -> FALSE (oyuncu kendi mermisiyle çarpışmaz)
+        if (hitteeType == SPRITE_TYPE_PLAYER) return FALSE;
     }
-
-    // Düşman mermisi ile ilgili çarpışmalar
-    if (hitterType == SPRITE_TYPE_ENEMY_MISSILE || hitteeType == SPRITE_TYPE_ENEMY_MISSILE)
-    {
-        Sprite* missile = (hitterType == SPRITE_TYPE_ENEMY_MISSILE) ? pSpriteHitter : pSpriteHittee;
-        Sprite* other = (hitterType == SPRITE_TYPE_ENEMY_MISSILE) ? pSpriteHittee : pSpriteHitter;
-
-        if (other->GetType() == SPRITE_TYPE_WALL) {
-            missile->Kill(); return FALSE;
-        }
-        if (other->GetType() == SPRITE_TYPE_PLAYER) {
-            missile->Kill();
-            if (charSprite == other) { // Emin olalım ki other gerçekten player sprite'ı
-                Player* playerPtr = static_cast<Player*>(other);
-                // playerPtr->TakeDamage(10); // Gerçek hasar mekanizması burada olmalı
-                // Şimdilik sadece mesaj, can azaltma Player sınıfında ele alınmalı
-                // OutputDebugString(L"Player hit by enemy missile!\n");
-            }
+    else if (hitteeType == SPRITE_TYPE_PLAYER_MISSILE) { // simetrik durum
+        if (hitterType == SPRITE_TYPE_WALL) { pSpriteHittee->Kill(); return FALSE; }
+        if (hitterType == SPRITE_TYPE_ENEMY) {
+            pSpriteHittee->Kill();
+            pSpriteHitter->Kill();
+            if (charSprite) static_cast<Player*>(charSprite)->AddScore(10);
             return FALSE;
         }
-        if (other->GetType() == SPRITE_TYPE_ENEMY) return FALSE; // Düşman kendi mermisiyle çarpışmaz
+        if (hitterType == SPRITE_TYPE_PLAYER) return FALSE;
     }
 
 
-    // Çarpışanlardan biri oyuncu mu?
+    // Düşman mermisi ile çarpışmalar
+    if (hitterType == SPRITE_TYPE_ENEMY_MISSILE) {
+        if (hitteeType == SPRITE_TYPE_WALL) { pSpriteHitter->Kill(); return FALSE; }
+        if (hitteeType == SPRITE_TYPE_PLAYER) {
+            pSpriteHitter->Kill();
+            // Player* playerPtr = static_cast<Player*>(pSpriteHittee);
+            // playerPtr->TakeDamage(10); // Hasar mekanizması
+            return FALSE;
+        }
+        // Enemy_Missile vs Enemy -> FALSE (düşman kendi mermisiyle çarpışmaz)
+        if (hitteeType == SPRITE_TYPE_ENEMY) return FALSE;
+    }
+    else if (hitteeType == SPRITE_TYPE_ENEMY_MISSILE) { // simetrik durum
+        if (hitterType == SPRITE_TYPE_WALL) { pSpriteHittee->Kill(); return FALSE; }
+        if (hitterType == SPRITE_TYPE_PLAYER) {
+            pSpriteHittee->Kill();
+            // Player* playerPtr = static_cast<Player*>(pSpriteHitter);
+            // playerPtr->TakeDamage(10);
+            return FALSE;
+        }
+        if (hitterType == SPRITE_TYPE_ENEMY) return FALSE;
+    }
+
+
+    // Oyuncu ile ilgili çarpışmalar
+    Sprite* pOtherSpriteForPlayer = nullptr;
     if (pSpriteHitter == charSprite) {
         pPlayer = static_cast<Player*>(pSpriteHitter);
-        pOther = pSpriteHittee;
+        pOtherSpriteForPlayer = pSpriteHittee;
     }
     else if (pSpriteHittee == charSprite) {
         pPlayer = static_cast<Player*>(pSpriteHittee);
-        pOther = pSpriteHitter;
-    }
-    else {
-        // Çarpışanlardan hiçbiri oyuncu değilse ve yukarıdaki özel durumlar da değilse
-        // (örneğin iki duvar - normalde olmaz, iki item - normalde olmaz)
-        // genel bir kural olarak FALSE dönelim.
-        return FALSE;
+        pOtherSpriteForPlayer = pSpriteHitter;
     }
 
-    // Player bir şeyle çarpıştı
-    if (!pPlayer || !pOther) return FALSE;
+    if (pPlayer && pOtherSpriteForPlayer) {
+        Bitmap* pOtherBitmap = pOtherSpriteForPlayer->GetBitmap();
+        SpriteType otherType = pOtherSpriteForPlayer->GetType();
 
-    Bitmap* pOtherBitmap = pOther->GetBitmap(); // pOther null değilse bitmap al
-
-    // Item'larla çarpışma
-    if (pOtherBitmap == keyBitmap) { pPlayer->AddKey(); pOther->Kill(); return FALSE; }
-    if (pOtherBitmap == healthPWBitmap) { pPlayer->AddHealth(20); pOther->Kill(); return FALSE; }
-    if (pOtherBitmap == armorPWBitmap) { pPlayer->AddArmor(20); pOther->Kill(); return FALSE; }
-    if (pOtherBitmap == pointPWBitmap) { pPlayer->AddScore(50); pOther->Kill(); return FALSE; }
-    if (pOtherBitmap == ammoPWBitmap) { pPlayer->AddSecondaryAmmo(10); pOther->Kill(); return FALSE; }
-    if (pOtherBitmap == endPointBitmap) {
-        int requiredKeys = min(4, currentLevel);
-        if (pPlayer->GetKeys() >= requiredKeys) {
-            isLevelFinished = true;
+        if (pOtherBitmap == keyBitmap) { pPlayer->AddKey(); pOtherSpriteForPlayer->Kill(); return FALSE; }
+        if (pOtherBitmap == healthPWBitmap) { pPlayer->AddHealth(20); pOtherSpriteForPlayer->Kill(); return FALSE; }
+        if (pOtherBitmap == armorPWBitmap) { pPlayer->AddArmor(20); pOtherSpriteForPlayer->Kill(); return FALSE; }
+        if (pOtherBitmap == pointPWBitmap) { pPlayer->AddScore(50); pOtherSpriteForPlayer->Kill(); return FALSE; }
+        if (pOtherBitmap == ammoPWBitmap) { pPlayer->AddSecondaryAmmo(10); pOtherSpriteForPlayer->Kill(); return FALSE; }
+        if (pOtherBitmap == endPointBitmap) {
+            int requiredKeys = std::min(4, currentLevel); // std::min kullan
+            if (pPlayer->GetKeys() >= requiredKeys) {
+                isLevelFinished = true;
+            }
+            return FALSE;
         }
-        return FALSE; // Bitiş noktasının üzerinden geçilebilir
+
+        if (otherType == SPRITE_TYPE_ENEMY)
+        {
+            // Player vs Enemy temasında TRUE dönerek geçişi engelle
+            // Player* playerPtr = pPlayer; 
+            // playerPtr->TakeDamage(5); // Temas hasarı
+            return TRUE;
+        }
+
+        if (otherType == SPRITE_TYPE_WALL)
+        {
+            return TRUE;
+        }
     }
 
-    // Oyuncu ile düşman çarpışması
-    if (pOther->GetType() == SPRITE_TYPE_ENEMY)
-    {
-        // Oyuncu düşmanla temas ederse hasar alabilir veya geri itilebilir.
-        // Şimdilik sadece TRUE dönerek birbirlerinin içinden geçmelerini engelleyelim.
-        // Player* playerPtr = static_cast<Player*>(pPlayer);
-        // playerPtr->TakeDamage(5); // Temas hasarı
-        return TRUE;
-    }
-
-    // Oyuncu ile duvar çarpışması
-    if (pOther->GetType() == SPRITE_TYPE_WALL)
-    {
-        return TRUE; // Duvarın içinden geçilemez
-    }
-
-    return FALSE; // Varsayılan olarak diğer çarpışmalar engellenmez (itemlar vb.)
+    // Eğer yukarıdaki koşulların hiçbiri karşılanmazsa, varsayılan olarak engelleme
+    // (Örn: İki item, bir item bir duvarla (gerçi duvarlar zaten BA_STOP olurdu) vb.)
+    // Ancak genellikle bu tür durumlar zaten Sprite'ın kendi BA_STOP'u ile çözülür.
+    // Eğer pSpriteHitter veya pSpriteHittee BA_STOP ise ve diğer sprite ile kesişiyorsa,
+    // GameEngine::UpdateSprites içindeki mantık zaten pozisyonu geri alacaktır.
+    // Bu fonksiyonun TRUE dönmesi, bu geri almayı tetikler.
+    // FALSE dönmesi ise, "bu çarpışma benim için önemli değil, GameEngine normal davransın" demektir.
+    return FALSE;
 }
 
 void OnLevelComplete() {
     currentLevel++;
-    // İsteğe bağlı: Seviye geçiş ekranı, ses vb.
-    // Sleep(2000); // Kısa bir bekleme
-
     CleanupLevel();
     GenerateLevel(currentLevel);
-    // Yeni seviyede düşman spawn zamanlayıcılarını sıfırla
     g_dwLastSpawnTime = GetTickCount();
     g_dwLastClosestEnemySpawnTime = GetTickCount();
 }
@@ -694,12 +704,17 @@ void CleanupLevel() {
 
     nonCollidableTiles.clear();
 
-    // Oyuncuyu listeden geçici olarak çıkar (silme!)
-    if (charSprite) game_engine->RemoveSprite(charSprite);
+    // charSprite null değilse ve listedeyse çıkar.
+    // GameEngine::RemoveSprite null olmayan bir sprite bekler.
+    if (charSprite) {
+        // Oyuncunun listede olup olmadığını kontrol etmek iyi bir pratik olabilir
+        // ama RemoveSprite zaten bulunamazsa bir şey yapmaz.
+        game_engine->RemoveSprite(charSprite);
+    }
 
-    // Kalan tüm spriteları (duvarlar, itemlar, düşmanlar vb.) temizle
-    game_engine->CleanupSprites();
+    game_engine->CleanupSprites(); // Geri kalan her şeyi siler
 
-    // Oyuncuyu temizlenmiş listeye geri ekle
-    if (charSprite) game_engine->AddSprite(charSprite);
+    if (charSprite) { // Oyuncu hala hayattaysa (null değilse) geri ekle
+        game_engine->AddSprite(charSprite);
+    }
 }

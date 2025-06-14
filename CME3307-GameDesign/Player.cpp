@@ -10,7 +10,7 @@ extern RECT globalBounds;
 Player::Player(Bitmap* pBitmap, MazeGenerator* pMaze)
     : Sprite(pBitmap), m_pMaze(pMaze)
 {
-    m_fSpeed = 1500.0f;
+    m_fSpeed = 700.0f;
     m_iFireCooldown = 0;
     m_iHealth = 100;
     m_iArmor = 0;
