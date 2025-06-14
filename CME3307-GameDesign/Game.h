@@ -15,6 +15,7 @@
 #include "Player.h"
 #include "Enemy.h"
 #include "FOVBackground.h"
+#include "Level.h"
 #include <vector>
 
 //Structures to be used
@@ -39,12 +40,21 @@ Sprite* charSprite;
 Background* background;
 Bitmap* wallBitmap;
 MazeGenerator* mazeGenerator;
+Level* currentLevel;
 Sprite* wallSpriteList;
 Bitmap* _pWallBitmap;
 Bitmap* _pFloorBitmap;
 Bitmap* _pPlayerBitmap;
 Bitmap* _pEnemyBitmap;
-Bitmap* _pMissileBitmap; // Mermi için Player.cpp'de extern ile eriþiliyor
+Bitmap* keyBitmap;
+Bitmap* healthBitmap;
+Bitmap* armorBitmap;
+Bitmap* ammoBitmap;
+Bitmap* weaponBitmap;
+Bitmap* pointBitmap;
+Bitmap* tileBit;
+std::vector<Sprite*> levelSprites;
+
 FOVBackground* fovEffect;
 int window_X, window_Y;
 int MAZE_WIDTH, MAZE_HEIGHT = 20;
@@ -62,5 +72,12 @@ void GenerateMaze(Bitmap* tileBit);
 void AddNonCollidableTile(int x, int y, Bitmap* bitmap); // Add this line
 
 void CenterCameraOnSprite(Sprite* sprite);
+
+void StartLevel(int levelNumber);
+void SetupLevel(int levelNumber);
+void LoadBitmaps(HDC hDC);
+void CleanupBitmaps();
+void UpdateLevel();
+void EndLevel();
 
 #endif //GAME_H
