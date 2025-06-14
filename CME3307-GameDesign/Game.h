@@ -47,6 +47,12 @@ extern Bitmap* keyBitmap;
 extern Bitmap* endPointBitmap;
 extern Bitmap* secondWeaponBitmap;
 
+
+extern HFONT       g_hUIFont;
+extern HFONT       g_hBigFont; // For "Level Complete" text
+extern BOOL        g_bInLevelTransition;
+extern DWORD       g_dwTransitionStartTime;
+
 extern bool isLevelFinished;
 
 extern int  currentLevel; // Add a global variable for the current level
@@ -62,6 +68,7 @@ void AddNonCollidableTile(int x, int y, Bitmap* bitmap);
 void CenterCameraOnSprite(Sprite* sprite);
 void CleanupLevel(); // Good practice to have a function to clear old sprites
 void LoadBitmaps(HDC hDC);
+void DrawUI(HDC hDC);
 
 // Yeni seviye oluþturma fonksiyonu
 void OnLevelComplete();

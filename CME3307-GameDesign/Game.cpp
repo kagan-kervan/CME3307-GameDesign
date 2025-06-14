@@ -42,6 +42,11 @@ Bitmap* secondWeaponBitmap = nullptr;
 bool isLevelFinished = false;
 int currentLevel; 
 
+HFONT       g_hUIFont = NULL;
+HFONT       g_hBigFont = NULL;
+BOOL        g_bInLevelTransition = FALSE;
+DWORD       g_dwTransitionStartTime = 0;
+
 BOOL GameInitialize(HINSTANCE hInst)
 {
     window_X = 1500;
@@ -84,6 +89,17 @@ void GameStart(HWND hWindow)
     fovEffect = new FOVBackground(charSprite, 90, 150);
 
 
+    // Create fonts for the UI
+    g_hUIFont = CreateFont(24, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+        DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, TEXT("Arial"));
+
+    g_hBigFont = CreateFont(72, 0, 0, 0, FW_EXTRABOLD, FALSE, FALSE, FALSE,
+        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+        DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, TEXT("Impact"));
+
+
+
     // Create and add multiple enemies
  // Create and add multiple enemies
     // Düþmanlarý oluþtur
@@ -118,6 +134,11 @@ void GameEnd()
     // Cleanup bitmaps
     delete _pEnemyMissileBitmap;
 
+
+    // Cleanup fonts
+    DeleteObject(g_hUIFont);
+    DeleteObject(g_hBigFont);
+
     // Cleanup the background
     delete background;
 
@@ -126,6 +147,7 @@ void GameEnd()
 
     // Cleanup the game engine
     delete game_engine;
+
 }
 
 void GameActivate(HWND hWindow)
@@ -161,38 +183,46 @@ void GamePaint(HDC hDC)
         sprite->Draw(hDC, camera->x, camera->y);
     }
     fovEffect->Draw(hDC, camera->x, camera->y);
+
+    DrawUI(hDC);
+
 }
 
 void GameCycle()
 {
-    // Update the background
-    background->Update();
-    game_engine->UpdateSprites(); // This updates player and enemies
+    // NEW: Check if we are in the level transition state
+    if (g_bInLevelTransition)
+    {
+        // Check if 4 seconds (4000 milliseconds) have passed
+        if (GetTickCount() - g_dwTransitionStartTime > 4000)
+        {
+            // Time's up! Reset the state and start the next level.
+            g_bInLevelTransition = FALSE;
 
-    if (isLevelFinished) {
-        OnLevelComplete();
-        isLevelFinished = false;
-        return;
+            // This is the logic that used to be in OnLevelComplete
+            currentLevel++;
+            CleanupLevel();
+            GenerateLevel(currentLevel);
+        }
+        // If time is not up, the game remains "paused". We just repaint.
     }
-    // MOUSE BUG FIX: Pass camera coordinates to the FOV update function.
-    if (fovEffect && camera) {
-        fovEffect->Update(camera->x, camera->y);
+    else // Game is running normally
+    {
+        background->Update();
+        game_engine->UpdateSprites(); // This updates player and enemies
+        CenterCameraOnSprite(charSprite);
+
+        if (fovEffect && camera) {
+            fovEffect->Update(camera->x, camera->y);
+        }
     }
 
-    // Obtain a device context for repainting the game
+    // --- The drawing part of the loop runs regardless of state ---
     HWND  hWindow = game_engine->GetWindow();
     HDC   hDC = GetDC(hWindow);
-
-    // Paint the game to the offscreen device context
-    // Center camera on sprite
-    CenterCameraOnSprite(charSprite);
-
     GamePaint(offscreenDC);
-    // Blit the offscreen bitmap to the game screen
     BitBlt(hDC, 0, 0, game_engine->GetWidth(), game_engine->GetHeight(),
         offscreenDC, 0, 0, SRCCOPY);
-
-    // Cleanup
     ReleaseDC(hWindow, hDC);
 }
 
@@ -481,7 +511,7 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
         {
             // Yeterli anahtar var! Seviyeyi bitir.
             // PlaySound(...); // Seviye tamamlama sesi
-            isLevelFinished = true;
+            OnLevelComplete();
         }
         // Yeterli anahtar yoksa hiçbir þey yapma, kapý kapalý kalýr.
     }
@@ -494,13 +524,9 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
 
 // Yeni seviye oluþturacak olan yardýmcý fonksiyon
 void OnLevelComplete() {
-    currentLevel++;
 
-    // UI gösterimi veya bekleme süresi
-    // Sleep(3000); // 3 saniye bekle
-
-    CleanupLevel(); // Mevcut haritadaki duvarlarý, item'larý vb. temizle
-    GenerateLevel(currentLevel); // Yeni seviyeyi oluþtur
+    g_bInLevelTransition = TRUE;
+    g_dwTransitionStartTime = GetTickCount();
 }
 
 // Bu fonksiyon, player hariç tüm spritelarý temizlemeli
@@ -515,4 +541,61 @@ void CleanupLevel() {
 
     // 3. Oyuncuyu temizlenmiþ listeye geri ekle.
     game_engine->AddSprite(charSprite);
+}
+
+
+void DrawUI(HDC hDC)
+{
+    // Make sure we have a player object to get stats from
+    if (charSprite == nullptr) return;
+
+    // Cast to Player to access its specific methods
+    Player* pPlayer = static_cast<Player*>(charSprite);
+
+    // --- Draw the main game stats (Health, Armor, etc.) ---
+    SetBkMode(hDC, TRANSPARENT); // Make text background transparent
+    SetTextColor(hDC, RGB(255, 255, 255)); // White text
+    SelectObject(hDC, g_hUIFont); // Use our UI font
+
+    TCHAR szBuffer[64];
+    int yPos = 10;
+
+    // Draw Health
+    wsprintf(szBuffer, TEXT("HEALTH: %d"), pPlayer->GetHealth());
+    TextOut(hDC, 10, yPos, szBuffer, lstrlen(szBuffer));
+    yPos += 25;
+
+    // Draw Armor
+    wsprintf(szBuffer, TEXT("ARMOR: %d"), pPlayer->GetArmor());
+    TextOut(hDC, 10, yPos, szBuffer, lstrlen(szBuffer));
+    yPos += 25;
+
+    // Draw Score
+    wsprintf(szBuffer, TEXT("SCORE: %d"), pPlayer->GetScore());
+    TextOut(hDC, 10, yPos, szBuffer, lstrlen(szBuffer));
+    yPos += 25;
+
+    // Draw Keys
+    int requiredKeys = min(4, currentLevel);
+    wsprintf(szBuffer, TEXT("KEYS: %d / %d"), pPlayer->GetKeys(), requiredKeys);
+    TextOut(hDC, 10, yPos, szBuffer, lstrlen(szBuffer));
+
+    // --- Draw the Level Transition Screen (if active) ---
+    if (g_bInLevelTransition)
+    {
+        // Draw a semi-transparent black overlay
+        HBRUSH hBrush = CreateSolidBrush(RGB(0, 0, 0));
+        RECT rcOverlay = { 0, 0, window_X, window_Y };
+        // For true transparency, you'd use AlphaBlend, but FillRect is simpler
+        // and often good enough for a quick overlay effect.
+        FillRect(hDC, &rcOverlay, hBrush);
+        DeleteObject(hBrush);
+
+        // Draw the "Level Complete" text in the center
+        SetTextColor(hDC, RGB(170, 255, 170)); // Light green text
+        SelectObject(hDC, g_hBigFont); // Use the big font
+
+        wsprintf(szBuffer, TEXT("LEVEL %d COMPLETE"), currentLevel);
+        DrawText(hDC, szBuffer, -1, &rcOverlay, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    }
 }
