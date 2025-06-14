@@ -1,9 +1,10 @@
 //
 // Created by ahmet on 3.06.2025.
 //
-#include <string> // Bu satï¿½rï¿½ en baï¿½a ekleyin
+#include <string> // Bu satýrý en baþa ekleyin
 #include "Game.h"
 #include <vector>
+#include "Enemy.h"
 
 //--------------------------------------------------
 //Global Variable Definitions
@@ -24,6 +25,7 @@ Background* background;
 Bitmap* wallBitmap;
 Bitmap* charBitmap;
 Bitmap* _pEnemyBitmap;
+Bitmap* _pPlayerMissileBitmap;
 HINSTANCE   instance;
 int window_X, window_Y;
 extern RECT globalBounds; // Make sure globalBounds is accessible
@@ -50,6 +52,7 @@ void GameStart(HWND hWindow)
         game_engine->GetWidth(), game_engine->GetHeight());
     SelectObject(offscreenDC, offscreenBitmap);
 
+
     HDC hDC = GetDC(hWindow);
     Bitmap* grassBit = new Bitmap(hDC, "tile.bmp");
     wallBitmap = new Bitmap(hDC, "wall.bmp");
@@ -58,8 +61,8 @@ void GameStart(HWND hWindow)
     charBitmap = new Bitmap(hDC, IDB_BITMAP3, instance);
     background = new Background(window_X, window_Y, RGB(0, 0, 0));
 
-    // DONMAYI AZALTMAK ï¿½ï¿½ï¿½N: Labirent boyutunu test iï¿½in makul bir seviyeye getirdim.
-    // Performansï¿½n iyi olduï¿½undan emin olunca tekrar bï¿½yï¿½tebilirsiniz.
+    // DONMAYI AZALTMAK ÝÇÝN: Labirent boyutunu test için makul bir seviyeye getirdim.
+    // Performansýn iyi olduðundan emin olunca tekrar büyütebilirsiniz.
     mazeGenerator = new MazeGenerator(15, 15);
     GenerateMaze(grassBit);
 
@@ -86,12 +89,12 @@ void GameStart(HWND hWindow)
 
     // Create and add multiple enemies
  // Create and add multiple enemies
-    // Dï¿½ï¿½manlarï¿½ oluï¿½tur
-    for (int i = 0; i < 5; i++) // Sayï¿½yï¿½ test iï¿½in azalttï¿½m
+    // Düþmanlarý oluþtur
+    for (int i = 0; i < 5; i++) // Sayýyý test için azalttým
     {
         EnemyType type = (i < 2) ? EnemyType::TURRET : EnemyType::CHASER;
 
-        // HAREKET HATASI Dï¿½ZELTï¿½LDï¿½: Dï¿½ï¿½manï¿½ tï¿½m harita sï¿½nï¿½rlarï¿½yla (globalBounds) oluï¿½turuyoruz.
+        // HAREKET HATASI DÜZELTÝLDÝ: Düþmaný tüm harita sýnýrlarýyla (globalBounds) oluþturuyoruz.
         Enemy* pEnemy = new Enemy(_pEnemyBitmap, globalBounds, BA_STOP,
             mazeGenerator, charSprite, type);
 
@@ -117,7 +120,7 @@ void GameEnd()
 
     // Cleanup bitmaps
     delete _pEnemyMissileBitmap;
-
+    delete _pPlayerMissileBitmap;
     // Cleanup the background
     delete background;
 
@@ -200,7 +203,7 @@ void MouseButtonDown(int x, int y, BOOL bLeft)
 {
 
    
-     // BU FONKSï¿½YON AYNI KALIYOR
+     // BU FONKSÝYON AYNI KALIYOR
     if (bLeft)
     {
         int targetWorldX = x + camera->x;
@@ -231,27 +234,27 @@ void HandleJoystick(JOYSTATE jsJoystickState) {
 
 BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
 {
-    // ï¿½arpï¿½ï¿½an spritelarï¿½n tiplerini al
+    // Çarpýþan spritelarýn tiplerini al
     SpriteType hitterType = pSpriteHitter->GetType();
     SpriteType hitteeType = pSpriteHittee->GetType();
 
-    // --- YENï¿½ KURAL: AYNI Tï¿½P MERMï¿½LER ï¿½ARPIï¿½MAZ ---
-    // Bu kural, shotgun gibi aynï¿½ anda birden fazla mermi ateï¿½lendiï¿½inde
-    // mermilerin birbirine takï¿½lmasï¿½nï¿½ ï¿½nler.
+    // --- YENÝ KURAL: AYNI TÝP MERMÝLER ÇARPIÞMAZ ---
+    // Bu kural, shotgun gibi ayný anda birden fazla mermi ateþlendiðinde
+    // mermilerin birbirine takýlmasýný önler.
     if (hitterType == SPRITE_TYPE_PLAYER_MISSILE && hitteeType == SPRITE_TYPE_PLAYER_MISSILE)
     {
-        // Hiï¿½bir ï¿½ey yapma, bu bir ï¿½arpï¿½ï¿½ma deï¿½il.
+        // Hiçbir þey yapma, bu bir çarpýþma deðil.
         return FALSE;
     }
     if (hitterType == SPRITE_TYPE_ENEMY_MISSILE && hitteeType == SPRITE_TYPE_ENEMY_MISSILE)
     {
-        // Dï¿½ï¿½man mermileri de kendi aralarï¿½nda ï¿½arpï¿½ï¿½masï¿½n.
+        // Düþman mermileri de kendi aralarýnda çarpýþmasýn.
         return FALSE;
     }
     // --------------------------------------------------
 
 
-    // --- KURAL: MERMï¿½ vs MERMï¿½ ï¿½ARPIï¿½MASI ---
+    // --- KURAL: MERMÝ vs MERMÝ ÇARPIÞMASI ---
     if ((hitterType == SPRITE_TYPE_PLAYER_MISSILE && hitteeType == SPRITE_TYPE_ENEMY_MISSILE) ||
         (hitterType == SPRITE_TYPE_ENEMY_MISSILE && hitteeType == SPRITE_TYPE_PLAYER_MISSILE))
     {
@@ -261,7 +264,7 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
     }
 
 
-    // --- OYUNCU MERMï¿½Sï¿½ ï¿½LE ï¿½LGï¿½Lï¿½ ï¿½ARPIï¿½MALAR ---
+    // --- OYUNCU MERMÝSÝ ÝLE ÝLGÝLÝ ÇARPIÞMALAR ---
     if (hitterType == SPRITE_TYPE_PLAYER_MISSILE || hitteeType == SPRITE_TYPE_PLAYER_MISSILE)
     {
         Sprite* missile = (hitterType == SPRITE_TYPE_PLAYER_MISSILE) ? pSpriteHitter : pSpriteHittee;
@@ -284,7 +287,7 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
         }
     }
 
-    // --- Dï¿½ï¿½MAN MERMï¿½Sï¿½ ï¿½LE ï¿½LGï¿½Lï¿½ ï¿½ARPIï¿½MALAR ---
+    // --- DÜÞMAN MERMÝSÝ ÝLE ÝLGÝLÝ ÇARPIÞMALAR ---
     if (hitterType == SPRITE_TYPE_ENEMY_MISSILE || hitteeType == SPRITE_TYPE_ENEMY_MISSILE)
     {
         Sprite* missile = (hitterType == SPRITE_TYPE_ENEMY_MISSILE) ? pSpriteHitter : pSpriteHittee;
@@ -308,7 +311,7 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
     }
 
 
-    // --- VARSAYILAN DAVRANIï¿½ ---
+    // --- VARSAYILAN DAVRANIÞ ---
     return TRUE;
 }
 
@@ -327,7 +330,7 @@ void GenerateMaze(Bitmap* tileBit) {
             int posY = y * tile_height;
             if (mazeArray[y][x] == -1) { // It's a wall
                 POINT pos = { posX, posY };
-                Sprite* wall = new Sprite(wallBitmap, rcBounds, BA_STOP);
+                Sprite* wall = new Sprite(wallBitmap, rcBounds, BA_STOP, SPRITE_TYPE_WALL);
                 wall->SetPosition(pos);
                 game_engine->AddSprite(wall);
             }
@@ -355,130 +358,4 @@ void CenterCameraOnSprite(Sprite* sprite) {
     int camY = centerY - camera->height / 2;
 
     camera->SetPosition(camX, camY);
-}
-
-void LoadBitmaps(HDC hDC) {
-
-    floorBitmap = new Bitmap(hDC, "tile.bmp");
-    wallBitmap = new Bitmap(hDC, "wall.bmp");
-    charBitmap = new Bitmap(hDC, IDB_BITMAP3, instance);
-    _pEnemyBitmap = new Bitmap(hDC, IDB_ENEMY, instance);
-    _pEnemyMissileBitmap = new Bitmap(hDC, IDB_BMISSILE, instance);
-    healthPWBitmap = new Bitmap(hDC, "Health.bmp");
-    ammoPWBitmap = new Bitmap(hDC, "Ammo.bmp");
-    pointPWBitmap = new Bitmap(hDC, "Point.bmp");
-    armorPWBitmap = new Bitmap(hDC, "Armor.bmp");
-    keyBitmap = new Bitmap(hDC, "Key.bmp");
-    endPointBitmap = new Bitmap(hDC, "Gate.bmp");
-}
-
-BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
-{
-    // ï¿½arpï¿½ï¿½an spritelardan birinin player olup olmadï¿½ï¿½ï¿½nï¿½ anla
-    Player* pPlayer = nullptr;
-    Sprite* pOther = nullptr;
-
-    if (pSpriteHitter == charSprite) {
-        pPlayer = static_cast<Player*>(pSpriteHitter);
-        pOther = pSpriteHittee;
-    }
-    else if (pSpriteHittee == charSprite) {
-        pPlayer = static_cast<Player*>(pSpriteHittee);
-        pOther = pSpriteHitter;
-    }
-    else {
-        // ï¿½arpï¿½ï¿½anlardan hiï¿½biri player deï¿½il, bu fonksiyonda ilgilenmiyoruz.
-        // (ï¿½rn: Dï¿½ï¿½man mermisi duvara ï¿½arparsa)
-        return FALSE;
-    }
-
-    // Player bir ï¿½eyle ï¿½arpï¿½ï¿½tï¿½, neyle ï¿½arpï¿½ï¿½tï¿½ï¿½ï¿½nï¿½ bitmap'inden anla
-    Bitmap* pOtherBitmap = pOther->GetBitmap();
-
-    // 1. Anahtar ile ï¿½arpï¿½ï¿½ma
-    if (pOtherBitmap == keyBitmap)
-    {
-        // PlaySound(...); // Anahtar alma sesi
-        pPlayer->AddKey();
-        pOther->Kill(); // Anahtarï¿½ haritadan sil
-        // UI'da anahtar sayï¿½sï¿½nï¿½ gï¿½ncelle...
-    }
-    // 2. Can paketi ile ï¿½arpï¿½ï¿½ma
-    else if (pOtherBitmap == healthPWBitmap)
-    {
-        pPlayer->AddHealth(20);
-        pOther->Kill();
-    }
-    // 3. Zï¿½rh paketi ile ï¿½arpï¿½ï¿½ma
-    else if (pOtherBitmap == armorPWBitmap)
-    {
-        pPlayer->AddArmor(20);
-        pOther->Kill();
-    }
-    // 4. Puan ile ï¿½arpï¿½ï¿½ma
-    else if (pOtherBitmap == pointPWBitmap)
-    {
-        pPlayer->AddScore(50);
-        pOther->Kill();
-    }
-    // 5. ï¿½kinci silah ile ï¿½arpï¿½ï¿½ma
-    else if (pOtherBitmap == secondWeaponBitmap)
-    {
-        pPlayer->GiveSecondWeapon();
-        pOther->Kill();
-    }
-    // 6. Mermi ile ï¿½arpï¿½ï¿½ma (sadece ikinci silah varsa iï¿½e yarar)
-    else if (pOtherBitmap == ammoPWBitmap)
-    {
-        if (pPlayer->HasSecondWeapon()) {
-            pPlayer->AddSecondaryAmmo(10);
-            pOther->Kill();
-        }
-        // ï¿½kinci silah yoksa, mermiyi alamaz, sprite silinmez.
-    }
-    // 7. Bitiï¿½ noktasï¿½ (Gate) ile ï¿½arpï¿½ï¿½ma
-    else if (pOtherBitmap == endPointBitmap)
-    {
-        // Seviyeyi bitirmek iï¿½in gereken anahtar sayï¿½sï¿½nï¿½ hesapla
-        // (Tasarï¿½mï¿½mï¿½za gï¿½re Seviye 1'de 1, 2'de 2, ... 4 ve sonrasï¿½nda 4 anahtar)
-        int requiredKeys = min(4, currentLevel);
-
-        if (pPlayer->GetKeys() >= requiredKeys)
-        {
-            // Yeterli anahtar var! Seviyeyi bitir.
-            // PlaySound(...); // Seviye tamamlama sesi
-            isLevelFinished = true;
-        }
-        // Yeterli anahtar yoksa hiï¿½bir ï¿½ey yapma, kapï¿½ kapalï¿½ kalï¿½r.
-    }
-
-    // Bu fonksiyonun TRUE veya FALSE dï¿½nmesi, spritelarï¿½n birbirinin
-    // iï¿½inden geï¿½ip geï¿½emeyeceï¿½ini belirler. Genelde item'lar iï¿½in FALSE
-    // dï¿½nmek daha mantï¿½klï¿½dï¿½r, bï¿½ylece oyuncu item'ï¿½n ï¿½zerinden geï¿½ebilir.
-    return FALSE;
-}
-
-// Yeni seviye oluï¿½turacak olan yardï¿½mcï¿½ fonksiyon
-void OnLevelComplete() {
-    currentLevel++;
-
-    // UI gï¿½sterimi veya bekleme sï¿½resi
-    // Sleep(3000); // 3 saniye bekle
-
-    CleanupLevel(); // Mevcut haritadaki duvarlarï¿½, item'larï¿½ vb. temizle
-    GenerateLevel(currentLevel); // Yeni seviyeyi oluï¿½tur
-}
-
-// Bu fonksiyon, player hariï¿½ tï¿½m spritelarï¿½ temizlemeli
-void CleanupLevel() {
-    // nonCollidableTiles'ï¿½ temizle
-    nonCollidableTiles.clear();
-    // 1. Oyuncuyu motorun listesinden geï¿½ici olarak ï¿½ï¿½kar (ama silme!)
-    game_engine->RemoveSprite(charSprite);
-
-    // 2. ï¿½imdi listede oyuncu olmadï¿½ï¿½ï¿½ iï¿½in, kalan her ï¿½eyi gï¿½venle silebiliriz.
-    game_engine->CleanupSprites();
-
-    // 3. Oyuncuyu temizlenmiï¿½ listeye geri ekle.
-    game_engine->AddSprite(charSprite);
 }
