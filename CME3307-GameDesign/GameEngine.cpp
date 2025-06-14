@@ -358,75 +358,39 @@ void GameEngine::DrawSprites(HDC hDC)
 
 void GameEngine::UpdateSprites()
 {
-    // Update the sprites in the sprite vector
-    RECT          rcOldSpritePos;
-    SPRITEACTION  saSpriteAction;
-    vector<Sprite*>::iterator siSprite, siSprite2; // siSprite2'yi burada tanýmla
+  // Update the sprites in the sprite vector
+  RECT          rcOldSpritePos;
+  SPRITEACTION  saSpriteAction;
+  vector<Sprite*>::iterator siSprite;
+  for (siSprite = m_vSprites.begin(); siSprite != m_vSprites.end(); /* siSprite++ */)
+  {
+    // Save the old sprite position in case we need to restore it
+    rcOldSpritePos = (*siSprite)->GetPosition();
 
-    // Geçici olarak öldürülecek sprite'larý tutan bir liste
-    vector<Sprite*> vSpritesToKill;
+    // Update the sprite
+    saSpriteAction = (*siSprite)->Update();
 
-    for (siSprite = m_vSprites.begin(); siSprite != m_vSprites.end(); siSprite++)
+    // Handle the SA_ADDSPRITE sprite action
+    if (saSpriteAction & SA_ADDSPRITE)
+      // Allow the sprite to add its sprite
+      AddSprite((*siSprite)->AddSprite());
+
+    // Handle the SA_KILL sprite action
+    if (saSpriteAction & SA_KILL)
     {
-        // Save the old sprite position
-        rcOldSpritePos = (*siSprite)->GetPosition();
-
-        // Update the sprite
-        saSpriteAction = (*siSprite)->Update();
-
-        // Handle SA_ADDSPRITE
-        if (saSpriteAction & SA_ADDSPRITE)
-            AddSprite((*siSprite)->AddSprite());
-
-        // Handle SA_KILL
-        if (saSpriteAction & SA_KILL)
-        {
-            vSpritesToKill.push_back(*siSprite);
-            continue;
-        }
-
-        // Çarpýþma Kontrolü
-        for (siSprite2 = m_vSprites.begin(); siSprite2 != m_vSprites.end(); siSprite2++)
-        {
-            // Kendisiyle çarpýþma kontrolü yapma
-            if (siSprite == siSprite2)
-                continue;
-
-            if ((*siSprite)->TestCollision(*siSprite2))
-            {
-                // Çarpýþma tespit edildi. SpriteCollision'ý çaðýr.
-                // Eðer TRUE dönerse, bu "sert" bir çarpýþmadýr ve pozisyon geri alýnmalýdýr.
-                if (SpriteCollision(*siSprite, *siSprite2))
-                {
-                    (*siSprite)->SetPosition(rcOldSpritePos);
-                    // Ýdeal olarak, *siSprite2'nin de pozisyonu geri alýnmalý,
-                    // ama o kendi döngüsünde kontrol edilecek. Bu þimdilik yeterli.
-                    break; // Bu sprite için baþka çarpýþma aramaya gerek yok.
-                }
-            }
-        }
+      // Kill the sprite
+      delete (*siSprite);
+      siSprite=m_vSprites.erase(siSprite);
+      //siSprite--;
+      continue;
     }
 
-    // Þimdi öldürülmesi iþaretlenen tüm sprite'larý güvenle sil
-    if (vSpritesToKill.size() > 0)
-    {
-        for (siSprite = vSpritesToKill.begin(); siSprite != vSpritesToKill.end(); siSprite++)
-        {
-            // Ana listeden bul ve sil
-            for (siSprite2 = m_vSprites.begin(); siSprite2 != m_vSprites.end(); )
-            {
-                if (*siSprite == *siSprite2)
-                {
-                    delete (*siSprite2);
-                    siSprite2 = m_vSprites.erase(siSprite2);
-                }
-                else
-                {
-                    siSprite2++;
-                }
-            }
-        }
-    }
+    // See if the sprite collided with any others
+    if (CheckSpriteCollision(*siSprite))
+      (*siSprite)->SetPosition(rcOldSpritePos);  // Restore the old sprite position
+
+    siSprite++;
+  }
 }
 
 void GameEngine::CleanupSprites()
