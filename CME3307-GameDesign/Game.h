@@ -3,12 +3,12 @@
 #define GAME_H
 #pragma once
 #include <windows.h>
-#include "Resource.h"
+#include "Resource.h" // IDB_TURRET_ENEMY burada tanýmlý olmalý (veya projenizin ana resource.h'ý)
 #include "GameEngine.h"
 #include "Bitmap.h"
 #include "Sprite.h"
 #include "Background.h"
-#include  "MazeGenerator.h"
+#include "MazeGenerator.h"
 #include "Camera.h"
 #include "Player.h"
 #include "Enemy.h"
@@ -39,6 +39,8 @@ extern HINSTANCE   instance;
 extern GameEngine* game_engine;
 extern Player* charSprite;
 extern MazeGenerator* mazeGenerator;
+extern Bitmap* _pEnemyBitmap;           // Genel düþman için
+extern Bitmap* _pTurretEnemyBitmap;     // YENÝ: Turret düþmaný için
 extern Bitmap* _pEnemyMissileBitmap;
 extern int TILE_SIZE;
 extern FOVBackground* fovEffect;
@@ -57,7 +59,7 @@ extern Bitmap* _pPlayerMissileBitmap;
 
 // Düþman spawn zamanlayýcýlarý için deðiþkenler
 extern DWORD g_dwLastSpawnTime;
-extern DWORD g_dwLastClosestEnemySpawnTime; // YENÝ: En yakýn düþmandan spawn için zamanlayýcý
+extern DWORD g_dwLastClosestEnemySpawnTime;
 extern bool isLevelFinished;
 
 extern int  currentLevel;
@@ -73,7 +75,7 @@ void OnLevelComplete();
 
 // Düþman spawn fonksiyonlarý
 void SpawnEnemyNearPlayer();
-void SpawnEnemyNearClosest(); // YENÝ FONKSÝYON BÝLDÝRÝMÝ
+void SpawnEnemyNearClosest();
 
 
 void DrawUI(HDC hDC);
@@ -81,6 +83,6 @@ void LoadHighScores();
 void SaveHighScores();
 void CheckAndSaveScore(int finalScore);
 void RestartGame();
-std::string GetCurrentTimestamp(); // YENÝ
+std::string GetCurrentTimestamp();
 
 #endif //GAME_H

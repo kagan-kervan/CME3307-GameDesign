@@ -33,7 +33,7 @@ IDB_GAMEOVER          BITMAP       "GameOver.bmp"
 IDB_WALL			  BITMAP       "wall.bmp"
 IDB_BITMAP3			  BITMAP	   "char_pistol.bmp"
 IDB_ENEMY			  BITMAP	   "enemy_idle.bmp"
-
+IDB_TURRET_ENEMY      BITMAP	   "turret_enemy.bmp"
 //-----------------------------------------------------------------
 // Wave Sounds
 //-----------------------------------------------------------------

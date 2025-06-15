@@ -1,6 +1,4 @@
-﻿// Game.cpp
-
-#include <string> // std::to_wstring için
+﻿#include <string> // std::to_wstring için
 #include "Game.h"
 #include <vector>
 #include "Enemy.h" // EnemyType enum'u için
@@ -28,23 +26,24 @@ const DWORD ENEMY_SPAWN_INTERVAL = 6000; // 6 saniye
 
 DWORD g_dwLastClosestEnemySpawnTime = 0;
 const DWORD CLOSEST_ENEMY_SPAWN_INTERVAL = 3000; // 3 saniye
-HCURSOR g_hCrosshairCursor = NULL; // Nişangah imleci için global değişken (tanım)
+HCURSOR g_hCrosshairCursor = NULL;
 GameEngine* game_engine;
 Player* charSprite;
 MazeGenerator* mazeGenerator;
-Bitmap* _pEnemyMissileBitmap;
+Bitmap* _pEnemyBitmap = nullptr;            // Genel düşman için
+Bitmap* _pTurretEnemyBitmap = nullptr;      // YENİ: Turret düşmanı için
+Bitmap* _pEnemyMissileBitmap = nullptr;
 FOVBackground* fovEffect;
-int TILE_SIZE; // Global TILE_SIZE
+int TILE_SIZE;
 Camera* camera;
 HDC offscreenDC;
 HBITMAP offscreenBitmap;
 Background* background;
-Bitmap* wallBitmap;
-Bitmap* charBitmap;
-Bitmap* _pEnemyBitmap;
+Bitmap* wallBitmap = nullptr;
+Bitmap* charBitmap = nullptr;
 HINSTANCE instance;
 int window_X, window_Y;
-Bitmap* _pPlayerMissileBitmap;
+Bitmap* _pPlayerMissileBitmap = nullptr;
 
 Bitmap* healthPWBitmap = nullptr;
 Bitmap* ammoPWBitmap = nullptr;
@@ -53,28 +52,23 @@ Bitmap* pointPWBitmap = nullptr;
 Bitmap* floorBitmap = nullptr;
 Bitmap* keyBitmap = nullptr;
 Bitmap* endPointBitmap = nullptr;
-Bitmap* secondWeaponBitmap = nullptr; // Kullanılmıyorsa null kalabilir
+Bitmap* secondWeaponBitmap = nullptr;
 
 bool isLevelFinished = false;
 int currentLevel;
 
-// NEW: Global variables for the level transition screen and UI fonts
 bool  g_bInLevelTransition = false;
 DWORD g_dwLevelTransitionStartTime = 0;
-const DWORD LEVEL_TRANSITION_DURATION = 3000; // 3 seconds
+const DWORD LEVEL_TRANSITION_DURATION = 3000;
 HFONT g_hUIFont = NULL;
 HFONT g_hBigFont = NULL;
 
-
-// NEW: Global variables for high score system
 const char* HIGH_SCORE_FILE = "highscores.txt";
 const int     MAX_HIGH_SCORES = 5;
 std::vector<HighScoreEntry> g_HighScores;
-bool          g_bScoreSaved = false; // Flag to prevent saving score multiple times
+bool          g_bScoreSaved = false;
 
 
-
-// YARDIMCI FONKSİYON: Belirtilen bir RECT alanının labirentte tamamen boş olup olmadığını kontrol eder
 bool IsAreaClearForSpawn(int tileX, int tileY, int spriteWidthInTiles, int spriteHeightInTiles)
 {
     if (!mazeGenerator || TILE_SIZE == 0)
@@ -102,7 +96,7 @@ BOOL GameInitialize(HINSTANCE hInst)
     if (game_engine == NULL)
         return FALSE;
 
-    game_engine->SetFrameRate(30); // 30 FPS
+    game_engine->SetFrameRate(30);
     instance = hInst;
 
     return TRUE;
@@ -144,8 +138,12 @@ void Camera::Update()
 
 void GameStart(HWND hWindow)
 {
-    if (!game_engine) return; // game_engine null ise çık
+    if (!game_engine) return;
     g_hCrosshairCursor = LoadCursor(NULL, IDC_CROSS);
+    if (g_hCrosshairCursor == NULL) {
+        OutputDebugString(TEXT("Nişangah imleci yüklenemedi!\n"));
+    }
+
     srand(GetTickCount());
     offscreenDC = CreateCompatibleDC(GetDC(hWindow));
     offscreenBitmap = CreateCompatibleBitmap(GetDC(hWindow),
@@ -153,13 +151,11 @@ void GameStart(HWND hWindow)
     SelectObject(offscreenDC, offscreenBitmap);
 
     HDC hDC = GetDC(hWindow);
-    LoadBitmaps(hDC); // Bitmap'leri yükle
+    LoadBitmaps(hDC);
 
-    // NEW: Load high scores from file at the start of the game
     LoadHighScores();
-    g_bScoreSaved = false; // Reset score-saved flag for the new game
+    g_bScoreSaved = false;
 
-    // NEW: Create fonts for the UI
     g_hUIFont = CreateFont(20, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
         OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
         DEFAULT_PITCH | FF_DONTCARE, TEXT("Arial"));
@@ -168,19 +164,19 @@ void GameStart(HWND hWindow)
         DEFAULT_PITCH | FF_DONTCARE, TEXT("Impact"));
 
 
-    if (!_pPlayerMissileBitmap && instance)
+    if (!_pPlayerMissileBitmap && instance) // Bu kontrol LoadBitmaps sonrasına taşınabilir veya orada da yapılabilir
         _pPlayerMissileBitmap = new Bitmap(hDC, IDB_MISSILE, instance);
 
     if (wallBitmap) TILE_SIZE = wallBitmap->GetHeight(); else TILE_SIZE = 50;
 
     background = new Background(window_X, window_Y, RGB(0, 0, 0));
-    mazeGenerator = new MazeGenerator(15, 15); // Labirent boyutu (örneğin 15x15)
+    mazeGenerator = new MazeGenerator(15, 15);
 
     if (charBitmap && mazeGenerator)
         charSprite = new Player(charBitmap, mazeGenerator);
 
     currentLevel = 1;
-    GenerateLevel(currentLevel); // Seviyeyi oluştur
+    GenerateLevel(currentLevel);
 
     if (charSprite)
         game_engine->AddSprite(charSprite);
@@ -189,22 +185,55 @@ void GameStart(HWND hWindow)
         camera = new Camera(charSprite, window_X, window_Y);
 
     if (charSprite)
-        fovEffect = new FOVBackground(charSprite, 90, 350, 75); // FOV ayarları
+        fovEffect = new FOVBackground(charSprite, 90, 350, 75);
 
     // Başlangıç düşmanları
-    if (mazeGenerator && _pEnemyBitmap && charSprite && TILE_SIZE > 0)
+    if (mazeGenerator && (_pEnemyBitmap || _pTurretEnemyBitmap) && charSprite && TILE_SIZE > 0)
     {
         const auto& mazeData = mazeGenerator->GetMaze();
         if (!mazeData.empty() && !mazeData[0].empty())
         {
-            int enemySpriteWidthInTiles = (_pEnemyBitmap->GetWidth() + TILE_SIZE - 1) / TILE_SIZE;
-            int enemySpriteHeightInTiles = (_pEnemyBitmap->GetHeight() + TILE_SIZE - 1) / TILE_SIZE;
+            Bitmap* referenceBitmapForSize = _pEnemyBitmap ? _pEnemyBitmap : _pTurretEnemyBitmap;
+            if (!referenceBitmapForSize) {
+                if (game_engine) game_engine->ErrorQuit(TEXT("Düşman boyutları için referans bitmap bulunamadı!"));
+                return;
+            }
 
-            for (int i = 0; i < 5; i++) // 5 başlangıç düşmanı
+            int enemySpriteWidthInTiles = (referenceBitmapForSize->GetWidth() + TILE_SIZE - 1) / TILE_SIZE;
+            int enemySpriteHeightInTiles = (referenceBitmapForSize->GetHeight() + TILE_SIZE - 1) / TILE_SIZE;
+
+            for (int i = 0; i < 5; i++)
             {
                 EnemyType type = (i < 2) ? EnemyType::TURRET : EnemyType::CHASER;
-                Enemy* pEnemy = new Enemy(_pEnemyBitmap, globalBounds, BA_STOP,
+                Bitmap* selectedEnemyBitmap = nullptr;
+
+                if (type == EnemyType::TURRET) {
+                    selectedEnemyBitmap = _pTurretEnemyBitmap; // Turret için özel bitmap'i kullan
+                }
+                else { // CHASER veya diğerleri
+                    selectedEnemyBitmap = _pEnemyBitmap;     // Genel düşman bitmap'ini kullan
+                }
+
+                // Eğer seçilen bitmap null ise (örn. turret için özel bitmap yüklenememişse veya
+                // genel düşman bitmap'i de yüklenememişse), genel düşman bitmap'ini fallback olarak kullan.
+                if (!selectedEnemyBitmap) selectedEnemyBitmap = _pEnemyBitmap;
+                if (!selectedEnemyBitmap) {
+                    OutputDebugString(TEXT("Uygun düşman bitmap'i bulunamadı, düşman oluşturulamadı.\n"));
+                    continue; // Bitmap yoksa bu düşmanı atla
+                }
+
+                Enemy* pEnemy = new Enemy(selectedEnemyBitmap, globalBounds, BA_STOP,
                     mazeGenerator, charSprite, type);
+
+                // Eğer farklı animasyon kare sayıları varsa burada ayarlanabilir.
+                // Örneğin:
+                // if (type == EnemyType::TURRET && _pTurretEnemyBitmap) {
+                //     pEnemy->SetNumFrames(4); // Turret için frame sayısı
+                // } else if (_pEnemyBitmap) {
+                //     pEnemy->SetNumFrames(4); // Genel düşman için frame sayısı
+                // }
+                // Enemy kurucusu zaten SetNumFrames(4) yaptığı için, eğer bu ortaksa dokunmaya gerek yok.
+
                 int ex, ey;
                 int tryCount = 0;
                 const int maxSpawnTries = 50;
@@ -222,12 +251,12 @@ void GameStart(HWND hWindow)
                 }
                 else
                 {
-                    delete pEnemy; // Yer bulunamadıysa sil
+                    delete pEnemy;
                 }
             }
         }
     }
-    g_dwLastSpawnTime = GetTickCount(); // İlk spawn için zamanlayıcıyı başlat
+    g_dwLastSpawnTime = GetTickCount();
     g_dwLastClosestEnemySpawnTime = GetTickCount();
 }
 
@@ -242,13 +271,18 @@ void GameEnd()
         game_engine->CleanupSprites();
         delete game_engine; game_engine = nullptr;
     }
+    // charSprite, game_engine->CleanupSprites() tarafından yönetiliyor olmalı.
+    // Eğer Player sınıfı ayrıca new ile oluşturuluyorsa ve CleanupSprites'a
+    // eklenmiyorsa `delete charSprite;` gerekebilir. Mevcut yapıda Sprite vektöründe olmalı.
     charSprite = nullptr;
 
+
+    delete _pEnemyBitmap; _pEnemyBitmap = nullptr;
+    delete _pTurretEnemyBitmap; _pTurretEnemyBitmap = nullptr; // YENİ: Turret bitmap'ini sil
     delete _pEnemyMissileBitmap; _pEnemyMissileBitmap = nullptr;
     delete background; background = nullptr;
     delete wallBitmap; wallBitmap = nullptr;
     delete charBitmap; charBitmap = nullptr;
-    delete _pEnemyBitmap; _pEnemyBitmap = nullptr;
     delete healthPWBitmap; healthPWBitmap = nullptr;
     delete ammoPWBitmap; ammoPWBitmap = nullptr;
     delete pointPWBitmap; pointPWBitmap = nullptr;
@@ -257,20 +291,20 @@ void GameEnd()
     delete keyBitmap; keyBitmap = nullptr;
     delete endPointBitmap; endPointBitmap = nullptr;
     delete _pPlayerMissileBitmap; _pPlayerMissileBitmap = nullptr;
+    delete secondWeaponBitmap; secondWeaponBitmap = nullptr; // secondWeaponBitmap de silinmeli
 
     delete mazeGenerator; mazeGenerator = nullptr;
     delete camera; camera = nullptr;
     delete fovEffect; fovEffect = nullptr;
 
-    // NEW: Delete the GDI font objects
     if (g_hUIFont) DeleteObject(g_hUIFont);
     if (g_hBigFont) DeleteObject(g_hBigFont);
+    // g_hCrosshairCursor LoadCursor(NULL, ...) ile yüklendiyse özel bir silme gerektirmez.
 }
 
 void GameActivate(HWND hWindow) {}
 void GameDeactivate(HWND hWindow) {}
 
-// MODIFIED: GamePaint is now cleaner. The UI drawing is moved to the DrawUI function.
 void GamePaint(HDC hDC)
 {
     if (!hDC) return;
@@ -301,50 +335,39 @@ void GamePaint(HDC hDC)
     if (fovEffect && camera)
         fovEffect->Draw(hDC, camera->x, camera->y);
 
-    // NEW: All UI is now drawn by a dedicated function.
     DrawUI(hDC);
 }
 
-
-// MODIFIED: GameCycle now handles the level transition state.
 void GameCycle()
 {
     if (!game_engine) return;
 
-    // First, check if we are in a level transition
     if (g_bInLevelTransition)
     {
-        // If the transition screen has been shown long enough...
         if (GetTickCount() - g_dwLevelTransitionStartTime > LEVEL_TRANSITION_DURATION)
         {
-            g_bInLevelTransition = false; // End the transition
-            OnLevelComplete();          // And now, actually load the next level
+            g_bInLevelTransition = false;
+            OnLevelComplete();
         }
-        // During the transition, we don't update game logic, we just paint.
     }
-    // If not in transition, run the normal game loop
     else
     {
-        // Player death check
         if (charSprite) {
             Player* pPlayer = static_cast<Player*>(charSprite);
             if (pPlayer && pPlayer->IsDead()) {
-                // If the player is dead, we stop updating game logic and just paint
-                // The painting part is handled at the end of GameCycle
                 if (!g_bScoreSaved)
                 {
                     CheckAndSaveScore(pPlayer->GetScore());
                     g_bScoreSaved = true;
                 }
             }
-            else // Player is alive, run normal game logic
+            else
             {
                 if (camera) camera->Update();
                 if (background) background->Update();
 
                 game_engine->UpdateSprites();
 
-                // Düşman spawn mantığı
                 if (GetTickCount() - g_dwLastSpawnTime > ENEMY_SPAWN_INTERVAL)
                 {
                     SpawnEnemyNearPlayer();
@@ -357,13 +380,11 @@ void GameCycle()
                     g_dwLastClosestEnemySpawnTime = GetTickCount();
                 }
 
-                // Check if the level has just been completed
                 if (isLevelFinished)
                 {
-                    isLevelFinished = false; // Reset the trigger
-                    g_bInLevelTransition = true; // Start the transition
+                    isLevelFinished = false;
+                    g_bInLevelTransition = true;
                     g_dwLevelTransitionStartTime = GetTickCount();
-                    // We DO NOT call OnLevelComplete() here yet. We wait for the transition to finish.
                 }
 
                 if (fovEffect && camera) fovEffect->Update(camera->x, camera->y);
@@ -371,59 +392,46 @@ void GameCycle()
         }
     }
 
-
-    // Painting happens every cycle, regardless of game state (playing, dead, or transition)
     HWND hWindow = game_engine->GetWindow();
     if (hWindow)
     {
         HDC hDC = GetDC(hWindow);
         if (hDC)
         {
-            GamePaint(offscreenDC); // Draw everything to the offscreen buffer
+            GamePaint(offscreenDC);
             BitBlt(hDC, 0, 0, game_engine->GetWidth(), game_engine->GetHeight(),
-                offscreenDC, 0, 0, SRCCOPY); // Copy buffer to screen
+                offscreenDC, 0, 0, SRCCOPY);
             ReleaseDC(hWindow, hDC);
         }
     }
 }
 
-
-// Game.cpp -> DrawUI
-
-// Bu fonksiyon, seviye geçiş ekranı, oyuncu durumu, mermi durumu ve oyun sonu ekranı gibi
-// tüm kullanıcı arayüzü elemanlarını çizer.
 void DrawUI(HDC hDC)
 {
-    // Gerekli nesneler yoksa veya fontlar yüklenmemişse çizim yapma
     if (charSprite == nullptr || g_hUIFont == NULL || g_hBigFont == NULL) return;
 
     Player* pPlayer = static_cast<Player*>(charSprite);
     HFONT hOldFont = (HFONT)SelectObject(hDC, g_hUIFont);
     SetBkMode(hDC, TRANSPARENT);
 
-    // 1. Seviye Geçiş Ekranı
-    // Eğer oyun seviye geçişi durumundaysa, sadece onu çiz ve fonksiyondan çık.
     if (g_bInLevelTransition)
     {
-        // Ekranı karart
         HBRUSH hBrush = CreateSolidBrush(RGB(0, 0, 0));
         RECT rcOverlay = { 0, 0, window_X, window_Y };
         FillRect(hDC, &rcOverlay, hBrush);
         DeleteObject(hBrush);
 
-        // Büyük font ile "LEVEL X COMPLETE" yaz
-        SetTextColor(hDC, RGB(170, 255, 170)); // Açık yeşil
+        SetTextColor(hDC, RGB(170, 255, 170));
         SelectObject(hDC, g_hBigFont);
         std::wstring levelText = L"LEVEL " + std::to_wstring(currentLevel) + L" COMPLETE";
         DrawTextW(hDC, levelText.c_str(), -1, &rcOverlay, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
-        SelectObject(hDC, hOldFont); // Orijinal fontu geri yükle
-        return; // Başka bir şey çizme
+        SelectObject(hDC, hOldFont);
+        return;
     }
 
-    // 2. Oyuncu Durum Bilgileri (Sol Üst)
-    SetTextColor(hDC, RGB(255, 255, 255)); // Yazı rengi beyaz
-    SelectObject(hDC, g_hUIFont);          // Standart UI fontunu seç
+    SetTextColor(hDC, RGB(255, 255, 255));
+    SelectObject(hDC, g_hUIFont);
 
     std::wstring text;
     int yPos = 10;
@@ -446,35 +454,32 @@ void DrawUI(HDC hDC)
     text = L"Keys: " + std::to_wstring(pPlayer->GetKeys()) + L" / " + std::to_wstring(requiredKeys);
     TextOutW(hDC, xPos, yPos, text.c_str(), static_cast<int>(text.length()));
 
-    // --- YENİ: Stamina ve Mermi Durumu (Sol Alt) ---
     RECT screenRect = { 0, 0, window_X, window_Y };
 
-    // Stamina Barı
     int staminaBarWidth = 200;
     int barHeight = 15;
     int barX = 10;
-    int staminaBarY = screenRect.bottom - 65; // Mermi barının biraz üstü
+    int staminaBarY = screenRect.bottom - 65;
 
     float staminaPercent = pPlayer->GetStamina() / pPlayer->GetMaxStamina();
+    if (staminaPercent < 0.0f) staminaPercent = 0.0f; // Negatif olmasını engelle
+    if (staminaPercent > 1.0f) staminaPercent = 1.0f; // 1.0'ı geçmesini engelle
 
-    // Arka plan (boş bar)
-    HBRUSH hRedBrush = CreateSolidBrush(RGB(70, 70, 0)); // Koyu sarı
+
+    HBRUSH hRedBrush = CreateSolidBrush(RGB(70, 70, 0));
     RECT bgRect = { barX, staminaBarY, barX + staminaBarWidth, staminaBarY + barHeight };
     FillRect(hDC, &bgRect, hRedBrush);
     DeleteObject(hRedBrush);
 
-    // Ön plan (dolu bar)
-    HBRUSH hYellowBrush = CreateSolidBrush(RGB(255, 255, 0)); // Parlak sarı
+    HBRUSH hYellowBrush = CreateSolidBrush(RGB(255, 255, 0));
     RECT fgRect = { barX, staminaBarY, barX + (int)(staminaBarWidth * staminaPercent), staminaBarY + barHeight };
     FillRect(hDC, &fgRect, hYellowBrush);
     DeleteObject(hYellowBrush);
 
-    // Çerçeve
     SelectObject(hDC, GetStockObject(NULL_BRUSH));
     SelectObject(hDC, GetStockObject(WHITE_PEN));
     Rectangle(hDC, bgRect.left - 1, bgRect.top - 1, bgRect.right + 1, bgRect.bottom + 1);
 
-    // Mermi Durumu
     const WeaponStats& stats = pPlayer->GetCurrentWeaponStats();
     std::wstring ammoText;
     if (pPlayer->IsReloading()) {
@@ -490,20 +495,17 @@ void DrawUI(HDC hDC)
     RECT ammoRect = { 10, screenRect.bottom - 40, 200, screenRect.bottom - 10 };
     DrawTextW(hDC, ammoText.c_str(), -1, &ammoRect, DT_LEFT | DT_SINGLELINE);
 
-    // 3. Oyun Sonu Ekranı
     if (pPlayer->IsDead()) {
-        SetTextColor(hDC, RGB(255, 0, 0)); // Kırmızı
-        SelectObject(hDC, g_hBigFont);     // Büyük font
+        SetTextColor(hDC, RGB(255, 0, 0));
+        SelectObject(hDC, g_hBigFont);
 
-        // "GAME OVER" yazısını ortala
         std::wstring gameOverText = L"GAME OVER";
         DrawTextW(hDC, gameOverText.c_str(), -1, &screenRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
-        // Yüksek skorları göstermek için fontu ve rengi ayarla
         SelectObject(hDC, g_hUIFont);
         SetTextColor(hDC, RGB(220, 220, 220));
 
-        yPos = screenRect.bottom / 2 + 60; // "GAME OVER" yazısının altına
+        yPos = screenRect.bottom / 2 + 60;
         yIncrement = 25;
         xPos = window_X / 2 - 150;
 
@@ -521,20 +523,19 @@ void DrawUI(HDC hDC)
             rank++;
         }
 
-        // "Tekrar Oyna" talimatını ekle
         yPos += 20;
         std::wstring restartText = L"Press SPACE to Play Again";
-        SetTextColor(hDC, RGB(255, 255, 150)); // Açık sarı
+        SetTextColor(hDC, RGB(255, 255, 150));
         RECT rcRestartText = { 0, yPos, window_X, yPos + 30 };
         DrawTextW(hDC, restartText.c_str(), -1, &rcRestartText, DT_CENTER | DT_SINGLELINE);
     }
 
-    SelectObject(hDC, hOldFont); // İşin bittiğinde orijinal fontu her zaman geri yükle
+    SelectObject(hDC, hOldFont);
 }
 
 void SpawnEnemyNearPlayer()
 {
-    if (!mazeGenerator || !charSprite || !_pEnemyBitmap || !game_engine || TILE_SIZE == 0) return;
+    if (!mazeGenerator || !charSprite || (!_pEnemyBitmap && !_pTurretEnemyBitmap) || !game_engine || TILE_SIZE == 0) return;
 
     RECT playerPos = charSprite->GetPosition();
     int playerTileX = playerPos.left / TILE_SIZE;
@@ -542,7 +543,7 @@ void SpawnEnemyNearPlayer()
 
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> distr(-7, 7); // Arama alanı
+    std::uniform_int_distribution<> distr(-7, 7);
 
     int spawnTileX, spawnTileY;
     int tryCount = 0;
@@ -553,8 +554,11 @@ void SpawnEnemyNearPlayer()
     int mazeWidthInTiles = static_cast<int>(mazeData[0].size());
     int mazeHeightInTiles = static_cast<int>(mazeData.size());
 
-    int enemySpriteWidthInTiles = (_pEnemyBitmap->GetWidth() + TILE_SIZE - 1) / TILE_SIZE;
-    int enemySpriteHeightInTiles = (_pEnemyBitmap->GetHeight() + TILE_SIZE - 1) / TILE_SIZE;
+    Bitmap* referenceBitmapForSize = _pEnemyBitmap ? _pEnemyBitmap : _pTurretEnemyBitmap;
+    if (!referenceBitmapForSize) return;
+
+    int enemySpriteWidthInTiles = (referenceBitmapForSize->GetWidth() + TILE_SIZE - 1) / TILE_SIZE;
+    int enemySpriteHeightInTiles = (referenceBitmapForSize->GetHeight() + TILE_SIZE - 1) / TILE_SIZE;
 
     do
     {
@@ -572,7 +576,22 @@ void SpawnEnemyNearPlayer()
     if (tryCount < maxTries)
     {
         EnemyType type = (rand() % 2 == 0) ? EnemyType::TURRET : EnemyType::CHASER;
-        Enemy* pEnemy = new Enemy(_pEnemyBitmap, globalBounds, BA_STOP,
+        Bitmap* selectedEnemyBitmap = nullptr;
+
+        if (type == EnemyType::TURRET) {
+            selectedEnemyBitmap = _pTurretEnemyBitmap;
+        }
+        else {
+            selectedEnemyBitmap = _pEnemyBitmap;
+        }
+
+        if (!selectedEnemyBitmap) selectedEnemyBitmap = _pEnemyBitmap; // Fallback
+        if (!selectedEnemyBitmap) {
+            OutputDebugString(TEXT("SpawnEnemyNearPlayer: Uygun düşman bitmap'i bulunamadı.\n"));
+            return;
+        }
+
+        Enemy* pEnemy = new Enemy(selectedEnemyBitmap, globalBounds, BA_STOP,
             mazeGenerator, charSprite, type);
         pEnemy->SetPosition(spawnTileX * TILE_SIZE, spawnTileY * TILE_SIZE);
         game_engine->AddSprite(pEnemy);
@@ -581,7 +600,7 @@ void SpawnEnemyNearPlayer()
 
 void SpawnEnemyNearClosest()
 {
-    if (!mazeGenerator || !charSprite || !_pEnemyBitmap || !game_engine || game_engine->GetSprites().empty() || TILE_SIZE == 0) return;
+    if (!mazeGenerator || !charSprite || (!_pEnemyBitmap && !_pTurretEnemyBitmap) || !game_engine || game_engine->GetSprites().empty() || TILE_SIZE == 0) return;
 
     Enemy* closestEnemy = nullptr;
     float minDistanceSq = std::numeric_limits<float>::max();
@@ -617,13 +636,30 @@ void SpawnEnemyNearClosest()
         int enemyTileX = enemyPos.left / TILE_SIZE;
         int enemyTileY = enemyPos.top / TILE_SIZE;
 
-        int enemySpriteWidthInTiles = (_pEnemyBitmap->GetWidth() + TILE_SIZE - 1) / TILE_SIZE;
-        int enemySpriteHeightInTiles = (_pEnemyBitmap->GetHeight() + TILE_SIZE - 1) / TILE_SIZE;
+        Bitmap* referenceBitmapForSize = _pEnemyBitmap ? _pEnemyBitmap : _pTurretEnemyBitmap;
+        if (!referenceBitmapForSize) return;
+
+        int enemySpriteWidthInTiles = (referenceBitmapForSize->GetWidth() + TILE_SIZE - 1) / TILE_SIZE;
+        int enemySpriteHeightInTiles = (referenceBitmapForSize->GetHeight() + TILE_SIZE - 1) / TILE_SIZE;
 
         if (IsAreaClearForSpawn(enemyTileX, enemyTileY, enemySpriteWidthInTiles, enemySpriteHeightInTiles))
         {
             EnemyType type = (rand() % 2 == 0) ? EnemyType::TURRET : EnemyType::CHASER;
-            Enemy* newEnemy = new Enemy(_pEnemyBitmap, globalBounds, BA_STOP,
+            Bitmap* selectedEnemyBitmap = nullptr;
+
+            if (type == EnemyType::TURRET) {
+                selectedEnemyBitmap = _pTurretEnemyBitmap;
+            }
+            else {
+                selectedEnemyBitmap = _pEnemyBitmap;
+            }
+            if (!selectedEnemyBitmap) selectedEnemyBitmap = _pEnemyBitmap; // Fallback
+            if (!selectedEnemyBitmap) {
+                OutputDebugString(TEXT("SpawnEnemyNearClosest: Uygun düşman bitmap'i bulunamadı.\n"));
+                return;
+            }
+
+            Enemy* newEnemy = new Enemy(selectedEnemyBitmap, globalBounds, BA_STOP,
                 mazeGenerator, charSprite, type);
             newEnemy->SetPosition(enemyTileX * TILE_SIZE, enemyTileY * TILE_SIZE);
             game_engine->AddSprite(newEnemy);
@@ -632,9 +668,7 @@ void SpawnEnemyNearClosest()
 }
 
 void HandleKeys() {
-
-    // YENİ: Oyuncu öldüğünde yeniden başlatmak için SPACE tuşunu kontrol et
-    if (charSprite->IsDead() && GetAsyncKeyState(VK_SPACE) & 0x8000)
+    if (charSprite && charSprite->IsDead() && GetAsyncKeyState(VK_SPACE) & 0x8000)
     {
         RestartGame();
     }
@@ -773,7 +807,7 @@ void GenerateLevel(int level)
             charSprite->SetPosition(startPosCoords.first * tile_width, startPosCoords.second * tile_height);
         }
     }
-    game_engine->PlayMIDISong(TEXT("tribal-sci-fi.mid"));
+    if (game_engine) game_engine->PlayMIDISong(TEXT("tribal-sci-fi.mid"));
 }
 
 void AddNonCollidableTile(int x, int y, Bitmap* bitmap)
@@ -784,22 +818,55 @@ void AddNonCollidableTile(int x, int y, Bitmap* bitmap)
 
 void LoadBitmaps(HDC hDC)
 {
-    if (!hDC) return;
+    if (!hDC || !instance) { // instance null kontrolü eklendi
+        if (game_engine) game_engine->ErrorQuit(TEXT("LoadBitmaps: HDC veya instance null!"));
+        return;
+    }
 
     floorBitmap = new Bitmap(hDC, "tile.bmp");
+    if (!floorBitmap || floorBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("tile.bmp yüklenemedi!"));
+
     wallBitmap = new Bitmap(hDC, "wall.bmp");
-    if (instance)
-    {
-        charBitmap = new Bitmap(hDC, IDB_BITMAP3, instance);
-        _pEnemyBitmap = new Bitmap(hDC, IDB_ENEMY, instance);
-        _pEnemyMissileBitmap = new Bitmap(hDC, IDB_BMISSILE, instance);
-    }
+    if (!wallBitmap || wallBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("wall.bmp yüklenemedi!"));
+
+
+    charBitmap = new Bitmap(hDC, IDB_BITMAP3, instance);
+    if (!charBitmap || charBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Oyuncu bitmap'i (IDB_BITMAP3) yüklenemedi!"));
+
+    _pEnemyBitmap = new Bitmap(hDC, IDB_ENEMY, instance); // Genel düşman
+    if (!_pEnemyBitmap || _pEnemyBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Genel düşman bitmap'i (IDB_ENEMY) yüklenemedi!"));
+
+    _pTurretEnemyBitmap = new Bitmap(hDC, IDB_TURRET_ENEMY, instance); // YENİ: Turret düşmanı
+    if (!_pTurretEnemyBitmap || _pTurretEnemyBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Turret düşman bitmap'i (IDB_TURRET_ENEMY) yüklenemedi!"));
+
+
+    _pEnemyMissileBitmap = new Bitmap(hDC, IDB_BMISSILE, instance);
+    if (!_pEnemyMissileBitmap || _pEnemyMissileBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Düşman mermi bitmap'i (IDB_BMISSILE) yüklenemedi!"));
+
+    _pPlayerMissileBitmap = new Bitmap(hDC, IDB_MISSILE, instance); // Player mermisi için de instance kullanılıyor olmalı
+    if (!_pPlayerMissileBitmap || _pPlayerMissileBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Oyuncu mermi bitmap'i (IDB_MISSILE) yüklenemedi!"));
+
+
     healthPWBitmap = new Bitmap(hDC, "Health.bmp");
+    if (!healthPWBitmap || healthPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Health.bmp yüklenemedi!"));
+
     ammoPWBitmap = new Bitmap(hDC, "Ammo.bmp");
+    if (!ammoPWBitmap || ammoPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Ammo.bmp yüklenemedi!"));
+
     pointPWBitmap = new Bitmap(hDC, "Point.bmp");
+    if (!pointPWBitmap || pointPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Point.bmp yüklenemedi!"));
+
     armorPWBitmap = new Bitmap(hDC, "Armor.bmp");
+    if (!armorPWBitmap || armorPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Armor.bmp yüklenemedi!"));
+
     keyBitmap = new Bitmap(hDC, "Key.bmp");
+    if (!keyBitmap || keyBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Key.bmp yüklenemedi!"));
+
     endPointBitmap = new Bitmap(hDC, "Gate.bmp");
+    if (!endPointBitmap || endPointBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Gate.bmp yüklenemedi!"));
+
+    // secondWeaponBitmap yükleniyorsa onun için de kontrol eklenebilir.
+    // if (secondWeaponBitmap && secondWeaponBitmap->GetWidth() == 0) if(game_engine) game_engine->ErrorQuit(TEXT("Second weapon bitmap yüklenemedi!"));
 }
 
 BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
@@ -838,14 +905,18 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
     {
         if (hitteeType == SPRITE_TYPE_WALL) { pSpriteHitter->Kill(); return FALSE; }
         if (hitteeType == SPRITE_TYPE_ENEMY) {
-            PlaySound(MAKEINTRESOURCE(IDW_EXPLODE), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE); pSpriteHitter->Kill(); pSpriteHittee->Kill(); if (charSprite) static_cast<Player*>(charSprite)->AddScore(10); return FALSE; }
-        if (hitteeType == SPRITE_TYPE_PLAYER) return FALSE;
+            if (game_engine && game_engine->GetInstance()) PlaySound(MAKEINTRESOURCE(IDW_EXPLODE), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT);
+            pSpriteHitter->Kill(); pSpriteHittee->Kill(); if (charSprite) static_cast<Player*>(charSprite)->AddScore(10); return FALSE;
+        }
+        if (hitteeType == SPRITE_TYPE_PLAYER) return FALSE; // Oyuncu kendi mermisiyle çarpışmaz
     }
-    else if (hitteeType == SPRITE_TYPE_PLAYER_MISSILE)
+    else if (hitteeType == SPRITE_TYPE_PLAYER_MISSILE) // simetrik durum
     {
         if (hitterType == SPRITE_TYPE_WALL) { pSpriteHittee->Kill(); return FALSE; }
         if (hitterType == SPRITE_TYPE_ENEMY) {
-            PlaySound(MAKEINTRESOURCE(IDW_EXPLODE), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE); pSpriteHittee->Kill(); pSpriteHitter->Kill(); if (charSprite) static_cast<Player*>(charSprite)->AddScore(10); return FALSE; }
+            if (game_engine && game_engine->GetInstance()) PlaySound(MAKEINTRESOURCE(IDW_EXPLODE), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT);
+            pSpriteHittee->Kill(); pSpriteHitter->Kill(); if (charSprite) static_cast<Player*>(charSprite)->AddScore(10); return FALSE;
+        }
         if (hitterType == SPRITE_TYPE_PLAYER) return FALSE;
     }
 
@@ -857,9 +928,9 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
             static_cast<Player*>(pSpriteHittee)->TakeDamage(12);
             return FALSE;
         }
-        if (hitteeType == SPRITE_TYPE_ENEMY) return FALSE;
+        if (hitteeType == SPRITE_TYPE_ENEMY) return FALSE; // Düşmanlar kendi mermileriyle çarpışmaz
     }
-    else if (hitteeType == SPRITE_TYPE_ENEMY_MISSILE)
+    else if (hitteeType == SPRITE_TYPE_ENEMY_MISSILE) // simetrik durum
     {
         if (hitterType == SPRITE_TYPE_WALL) { pSpriteHittee->Kill(); return FALSE; }
         if (hitterType == SPRITE_TYPE_PLAYER && pSpriteHitter == charSprite) {
@@ -891,17 +962,24 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
         if (pOtherBitmap == ammoPWBitmap) { pPlayer->AddSecondaryAmmo(10); pOtherSpriteForPlayer->Kill(); return FALSE; }
         if (pOtherBitmap == endPointBitmap) {
             int requiredKeys = std::min(4, currentLevel);
-            if (pPlayer->GetKeys() >= requiredKeys) isLevelFinished = true;
+            if (pPlayer->GetKeys() >= requiredKeys) {
+                isLevelFinished = true;
+                if (game_engine) game_engine->PlayMIDISong(TEXT(""), FALSE); // Müziği durdur veya değiştir
+            }
             return FALSE;
         }
 
         if (otherType == SPRITE_TYPE_ENEMY) {
             Enemy* pEnemy = static_cast<Enemy*>(pOtherSpriteForPlayer);
             if (pEnemy) {
-                if (pEnemy->GetEnemyType() == EnemyType::CHASER) pPlayer->TakeDamage(1);
-                else if (pEnemy->GetEnemyType() == EnemyType::TURRET) pPlayer->TakeDamage(1);
+                // CHASER tipi düşmanla çarpışmada oyuncu hasar alır, TURRET ile çarpışmada değil (sadece mermiyle)
+                if (pEnemy->GetEnemyType() == EnemyType::CHASER) {
+                    pPlayer->TakeDamage(1); // Örnek hasar miktarı
+                }
+                // TURRET ile fiziksel çarpışma için bir şey yapmıyoruz,
+                // mermileri zaten yukarıda ele alınıyor.
             }
-            return TRUE;
+            return TRUE; // Düşmanla çarpışma oldu, kayarak geçmesini engelle
         }
 
         if (otherType == SPRITE_TYPE_WALL) return TRUE;
@@ -910,11 +988,9 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
     return FALSE;
 }
 
-// MODIFIED: This function is now called AFTER the level transition screen.
 void OnLevelComplete()
 {
     currentLevel++;
-    // CleanupLevel is called by GenerateLevel now to ensure correct order
     GenerateLevel(currentLevel);
     g_dwLastSpawnTime = GetTickCount();
     g_dwLastClosestEnemySpawnTime = GetTickCount();
@@ -925,20 +1001,19 @@ void CleanupLevel()
     if (!game_engine) return;
     nonCollidableTiles.clear();
 
+    // Önce oyuncuyu listeden çıkaralım (eğer varsa), sonra tüm spriteları temizleyelim,
+    // sonra oyuncuyu geri ekleyelim.
     if (charSprite) {
-        game_engine->RemoveSprite(charSprite);
+        game_engine->RemoveSprite(charSprite); // Sadece listeden çıkarır, silmez.
     }
-    game_engine->CleanupSprites();
+    game_engine->CleanupSprites(); // Oyuncu dışındaki her şeyi siler.
 
     if (charSprite) {
-        game_engine->AddSprite(charSprite);
+        game_engine->AddSprite(charSprite); // Temizlenmiş listeye oyuncuyu geri ekle.
         charSprite->ResetKeys();
     }
 }
 
-
-
-// DEĞİŞTİRİLDİ: Dosyadan zaman damgalı yüksek skorları yükler.
 void LoadHighScores()
 {
     std::ifstream file(HIGH_SCORE_FILE);
@@ -951,7 +1026,6 @@ void LoadHighScores()
             std::stringstream ss(line);
             std::string scoreStr, timestamp;
 
-            // Satırı ayrıştır: skor,zaman_damgası
             if (std::getline(ss, scoreStr, ',') && std::getline(ss, timestamp))
             {
                 try {
@@ -963,11 +1037,9 @@ void LoadHighScores()
         }
         file.close();
     }
-    // Skorları azalan sırada sırala
     std::sort(g_HighScores.rbegin(), g_HighScores.rend());
 }
 
-// DEĞİŞTİRİLDİ: Dosyaya zaman damgalı yüksek skorları kaydeder.
 void SaveHighScores()
 {
     std::ofstream file(HIGH_SCORE_FILE);
@@ -981,12 +1053,11 @@ void SaveHighScores()
     }
 }
 
-// DEĞİŞTİRİLDİ: Yeni skoru zaman damgasıyla ekler, sıralar, listeyi kırpar ve kaydeder.
 void CheckAndSaveScore(int finalScore)
 {
     HighScoreEntry newEntry = { finalScore, GetCurrentTimestamp() };
     g_HighScores.push_back(newEntry);
-    std::sort(g_HighScores.rbegin(), g_HighScores.rend()); // Skora göre azalan sıralama
+    std::sort(g_HighScores.rbegin(), g_HighScores.rend());
 
     if (g_HighScores.size() > MAX_HIGH_SCORES)
     {
@@ -999,32 +1070,28 @@ void CheckAndSaveScore(int finalScore)
 std::string GetCurrentTimestamp() {
     std::time_t t = std::time(nullptr);
     char buffer[100];
-    // Format: YYYY-MM-DD HH:MM:SS
     if (std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", std::localtime(&t))) {
         return std::string(buffer);
     }
-    return ""; // Hata durumunda boş string döndür
+    return "";
 }
 
-// YENİ: Oyunu yeniden başlatan ana fonksiyon
 void RestartGame()
 {
     if (!charSprite || !game_engine || !mazeGenerator) return;
 
-    // 1. Oyuncu durumunu sıfırla
     static_cast<Player*>(charSprite)->Reset();
-
-    // 2. Oyun durumunu sıfırla
     g_bScoreSaved = false;
     currentLevel = 1;
+    isLevelFinished = false; // Seviye tamamlama bayrağını da sıfırla
+    g_bInLevelTransition = false; // Seviye geçişini de sıfırla
 
-    // 3. Eski seviyeyi temizle
-    CleanupLevel(); // Bu fonksiyon zaten oyuncu dışındaki tüm spriteları temizler
+    CleanupLevel();
+    GenerateLevel(currentLevel);
 
-    // 4. Yeni seviye 1'i oluştur
-    GenerateLevel(currentLevel); // Bu aynı zamanda oyuncuyu başlangıç pozisyonuna yerleştirir
-
-    // 6. Zamanlayıcıları sıfırla
     g_dwLastSpawnTime = GetTickCount();
     g_dwLastClosestEnemySpawnTime = GetTickCount();
+
+    // Oyuncu öldüğünde müzik durmuşsa veya değişmişse yeniden başlat
+    if (game_engine) game_engine->PlayMIDISong(TEXT("tribal-sci-fi.mid"), TRUE);
 }
