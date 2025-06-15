@@ -27,6 +27,7 @@ public:
 
     void AddKey(int amount = 1);
     int  GetKeys() const;
+    void ResetKeys() { m_iKeys = 0; }
 
     void AddHealth(int amount);
     int  GetHealth() const;
@@ -42,6 +43,8 @@ public:
 
     void AddSecondaryAmmo(int amount);
     int  GetSecondaryAmmo() const;
+
+    void Reset();
 
     // YENİ: Hasar alma fonksiyonu
     void TakeDamage(int amount);

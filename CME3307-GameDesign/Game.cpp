@@ -8,6 +8,13 @@
 #include <limits>    // std::numeric_limits için eklendi
 #include <cmath>     // sqrt, pow için eklendi
 #include <algorithm> // std::min, std::max için
+#include <fstream>   // NEW: For file I/O (high scores)
+#include <iostream>  // NEW: For file I/O (high scores)
+
+#include <sstream>   // YENİ: String'leri ayrıştırmak için
+#include <ctime>     // YENİ: Mevcut zamanı almak için
+#pragma warning(disable : 4996) // YENİ: std::localtime için gelen uyarıyı devre dışı bırak
+
 #undef max           // Windows.h'daki max ile std::max çakışmasını önlemek için
 #undef min
 //--------------------------------------------------
@@ -17,10 +24,10 @@ std::vector<Tile> nonCollidableTiles;
 RECT globalBounds = { 0, 0, 4000, 4000 }; // Geniş bir alan
 
 DWORD g_dwLastSpawnTime = 0;
-const DWORD ENEMY_SPAWN_INTERVAL = 6000; // 15 saniye
+const DWORD ENEMY_SPAWN_INTERVAL = 6000; // 6 saniye
 
 DWORD g_dwLastClosestEnemySpawnTime = 0;
-const DWORD CLOSEST_ENEMY_SPAWN_INTERVAL = 3000; // 6 saniye
+const DWORD CLOSEST_ENEMY_SPAWN_INTERVAL = 3000; // 3 saniye
 
 GameEngine* game_engine;
 Player* charSprite;
@@ -50,6 +57,22 @@ Bitmap* secondWeaponBitmap = nullptr; // Kullanılmıyorsa null kalabilir
 
 bool isLevelFinished = false;
 int currentLevel;
+
+// NEW: Global variables for the level transition screen and UI fonts
+bool  g_bInLevelTransition = false;
+DWORD g_dwLevelTransitionStartTime = 0;
+const DWORD LEVEL_TRANSITION_DURATION = 3000; // 3 seconds
+HFONT g_hUIFont = NULL;
+HFONT g_hBigFont = NULL;
+
+
+// NEW: Global variables for high score system
+const char* HIGH_SCORE_FILE = "highscores.txt";
+const int     MAX_HIGH_SCORES = 5;
+std::vector<HighScoreEntry> g_HighScores;
+bool          g_bScoreSaved = false; // Flag to prevent saving score multiple times
+
+
 
 // YARDIMCI FONKSİYON: Belirtilen bir RECT alanının labirentte tamamen boş olup olmadığını kontrol eder
 bool IsAreaClearForSpawn(int tileX, int tileY, int spriteWidthInTiles, int spriteHeightInTiles)
@@ -132,6 +155,19 @@ void GameStart(HWND hWindow)
     HDC hDC = GetDC(hWindow);
     LoadBitmaps(hDC); // Bitmap'leri yükle
 
+    // NEW: Load high scores from file at the start of the game
+    LoadHighScores();
+    g_bScoreSaved = false; // Reset score-saved flag for the new game
+
+    // NEW: Create fonts for the UI
+    g_hUIFont = CreateFont(20, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+        DEFAULT_PITCH | FF_DONTCARE, TEXT("Arial"));
+    g_hBigFont = CreateFont(72, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+        DEFAULT_PITCH | FF_DONTCARE, TEXT("Impact"));
+
+
     if (!_pPlayerMissileBitmap && instance)
         _pPlayerMissileBitmap = new Bitmap(hDC, IDB_MISSILE, instance);
 
@@ -202,22 +238,16 @@ void GameEnd()
     if (offscreenBitmap) DeleteObject(offscreenBitmap);
     if (offscreenDC) DeleteDC(offscreenDC);
 
-    // charSprite GameEngine tarafından CleanupSprites ile silinecek.
-    // Bu yüzden burada charSprite'ı silmeye gerek yok, sadece null yapalım.
-    // Ancak eğer CleanupLevel oyuncuyu koruyorsa, o zaman GameEnd'de oyuncu ayrıca silinmeli.
-    // Mevcut mantıkta CleanupSprites her şeyi siliyor.
-
     if (game_engine) {
-        game_engine->CleanupSprites(); // Bu çağrı charSprite dahil her şeyi siler
+        game_engine->CleanupSprites();
         delete game_engine; game_engine = nullptr;
     }
-    charSprite = nullptr; // GameEngine silindiği için charSprite artık geçersiz
+    charSprite = nullptr;
 
-    // Bitmap'leri sil
     delete _pEnemyMissileBitmap; _pEnemyMissileBitmap = nullptr;
     delete background; background = nullptr;
     delete wallBitmap; wallBitmap = nullptr;
-    delete charBitmap; charBitmap = nullptr; // charSprite silindiği için bu da silinmeli
+    delete charBitmap; charBitmap = nullptr;
     delete _pEnemyBitmap; _pEnemyBitmap = nullptr;
     delete healthPWBitmap; healthPWBitmap = nullptr;
     delete ammoPWBitmap; ammoPWBitmap = nullptr;
@@ -227,53 +257,40 @@ void GameEnd()
     delete keyBitmap; keyBitmap = nullptr;
     delete endPointBitmap; endPointBitmap = nullptr;
     delete _pPlayerMissileBitmap; _pPlayerMissileBitmap = nullptr;
-    // if (secondWeaponBitmap) { delete secondWeaponBitmap; secondWeaponBitmap = nullptr; }
 
     delete mazeGenerator; mazeGenerator = nullptr;
     delete camera; camera = nullptr;
     delete fovEffect; fovEffect = nullptr;
+
+    // NEW: Delete the GDI font objects
+    if (g_hUIFont) DeleteObject(g_hUIFont);
+    if (g_hBigFont) DeleteObject(g_hBigFont);
 }
 
-void GameActivate(HWND hWindow)
-{
-    // Oyunu aktive et (örneğin, duraklatılmışsa devam ettir)
-}
+void GameActivate(HWND hWindow) {}
+void GameDeactivate(HWND hWindow) {}
 
-void GameDeactivate(HWND hWindow)
-{
-    // Oyunu deaktive et (örneğin, pencere odaktan çıkınca duraklat)
-}
-
+// MODIFIED: GamePaint is now cleaner. The UI drawing is moved to the DrawUI function.
 void GamePaint(HDC hDC)
 {
     if (!hDC) return;
 
-    if (background && camera) background->Draw(hDC, 0, 0); // Arka plan kameradan bağımsız çizilir
+    if (background && camera) background->Draw(hDC, 0, 0);
 
     for (const auto& tile : nonCollidableTiles)
     {
-        if (tile.bitmap && camera) // camera null kontrolü
+        if (tile.bitmap && camera)
             tile.bitmap->Draw(hDC, tile.x - camera->x, tile.y - camera->y, TRUE);
     }
 
-    if (game_engine && camera) // camera null kontrolü
+    if (game_engine && camera)
     {
-        // Sprite'ları çizmeden önce oyuncunun ölü olup olmadığını kontrol et
-        bool playerIsDead = false;
-        if (charSprite) {
-            Player* pPlayer = static_cast<Player*>(charSprite);
-            if (pPlayer && pPlayer->IsDead()) {
-                playerIsDead = true;
-            }
-        }
+        bool playerIsDead = (charSprite && static_cast<Player*>(charSprite)->IsDead());
 
         for (Sprite* sprite : game_engine->GetSprites())
         {
             if (sprite) {
-                // Eğer oyuncu öldüyse ve bu sprite oyuncu ise çizme (veya bir "ölü sprite" çiz)
                 if (playerIsDead && sprite == charSprite) {
-                    // İsteğe bağlı: Oyuncunun ölü halini gösteren bir sprite çizilebilir
-                    // Veya hiçbir şey çizilmez
                     continue;
                 }
                 sprite->Draw(hDC, camera->x, camera->y);
@@ -281,116 +298,188 @@ void GamePaint(HDC hDC)
         }
     }
 
-    if (fovEffect && camera) // camera null kontrolü
+    if (fovEffect && camera)
         fovEffect->Draw(hDC, camera->x, camera->y);
 
-    // Oyuncu bilgilerini ekrana yazdır
-    if (charSprite)
-    {
-        Player* pPlayer = static_cast<Player*>(charSprite);
-        if (pPlayer) // pPlayer null değilse
-        {
-            SetTextColor(hDC, RGB(255, 255, 255)); // Beyaz yazı
-            SetBkMode(hDC, TRANSPARENT);          // Şeffaf arka plan
-
-            std::wstring healthText = L"Health: " + std::to_wstring(pPlayer->GetHealth());
-            TextOutW(hDC, 10, 10, healthText.c_str(), static_cast<int>(healthText.length()));
-
-            std::wstring armorText = L"Armor: " + std::to_wstring(pPlayer->GetArmor());
-            TextOutW(hDC, 10, 30, armorText.c_str(), static_cast<int>(armorText.length()));
-
-            std::wstring scoreText = L"Score: " + std::to_wstring(pPlayer->GetScore());
-            TextOutW(hDC, 10, 50, scoreText.c_str(), static_cast<int>(scoreText.length()));
-
-            std::wstring keysText = L"Keys: " + std::to_wstring(pPlayer->GetKeys());
-            TextOutW(hDC, 10, 70, keysText.c_str(), static_cast<int>(keysText.length()));
-
-            // Eğer oyuncu öldüyse "GAME OVER" yazdır
-            if (pPlayer->IsDead()) {
-                SetTextColor(hDC, RGB(255, 0, 0)); // Kırmızı yazı
-                HFONT hFont, hOldFont;
-                // Daha büyük bir font oluştur (örneğin Arial, 48 punto)
-                hFont = CreateFont(48, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
-                    OUT_OUTLINE_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
-                    VARIABLE_PITCH, TEXT("Arial"));
-                hOldFont = (HFONT)SelectObject(hDC, hFont);
-
-                std::wstring gameOverText = L"GAME OVER";
-                RECT screenRect = { 0, 0, window_X, window_Y };
-                DrawTextW(hDC, gameOverText.c_str(), -1, &screenRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
-                SelectObject(hDC, hOldFont); // Eski fontu geri yükle
-                DeleteObject(hFont);        // Oluşturulan fontu sil
-            }
-        }
-    }
+    // NEW: All UI is now drawn by a dedicated function.
+    DrawUI(hDC);
 }
 
+
+// MODIFIED: GameCycle now handles the level transition state.
 void GameCycle()
 {
     if (!game_engine) return;
 
-    // Oyuncu ölmüşse oyun döngüsünü durdur veya farklı bir mantık işlet
-    if (charSprite) {
-        Player* pPlayer = static_cast<Player*>(charSprite);
-        if (pPlayer && pPlayer->IsDead()) {
-            // Oyun bitti, sadece GamePaint'i çağırıp ekranda GAME OVER göstermeye devam et.
-            // Yeni sprite update'leri veya spawn'ları yapma.
-            HWND hWindow = game_engine->GetWindow();
-            if (hWindow) {
-                HDC hDC = GetDC(hWindow);
-                if (hDC) {
-                    GamePaint(offscreenDC);
-                    BitBlt(hDC, 0, 0, game_engine->GetWidth(), game_engine->GetHeight(),
-                        offscreenDC, 0, 0, SRCCOPY);
-                    ReleaseDC(hWindow, hDC);
+    // First, check if we are in a level transition
+    if (g_bInLevelTransition)
+    {
+        // If the transition screen has been shown long enough...
+        if (GetTickCount() - g_dwLevelTransitionStartTime > LEVEL_TRANSITION_DURATION)
+        {
+            g_bInLevelTransition = false; // End the transition
+            OnLevelComplete();          // And now, actually load the next level
+        }
+        // During the transition, we don't update game logic, we just paint.
+    }
+    // If not in transition, run the normal game loop
+    else
+    {
+        // Player death check
+        if (charSprite) {
+            Player* pPlayer = static_cast<Player*>(charSprite);
+            if (pPlayer && pPlayer->IsDead()) {
+                // If the player is dead, we stop updating game logic and just paint
+                // The painting part is handled at the end of GameCycle
+                if (!g_bScoreSaved)
+                {
+                    CheckAndSaveScore(pPlayer->GetScore());
+                    g_bScoreSaved = true;
                 }
             }
-            return; // Oyun döngüsünün geri kalanını atla
+            else // Player is alive, run normal game logic
+            {
+                if (camera) camera->Update();
+                if (background) background->Update();
+
+                game_engine->UpdateSprites();
+
+                // Düşman spawn mantığı
+                if (GetTickCount() - g_dwLastSpawnTime > ENEMY_SPAWN_INTERVAL)
+                {
+                    SpawnEnemyNearPlayer();
+                    g_dwLastSpawnTime = GetTickCount();
+                }
+
+                if (GetTickCount() - g_dwLastClosestEnemySpawnTime > CLOSEST_ENEMY_SPAWN_INTERVAL)
+                {
+                    SpawnEnemyNearClosest();
+                    g_dwLastClosestEnemySpawnTime = GetTickCount();
+                }
+
+                // Check if the level has just been completed
+                if (isLevelFinished)
+                {
+                    isLevelFinished = false; // Reset the trigger
+                    g_bInLevelTransition = true; // Start the transition
+                    g_dwLevelTransitionStartTime = GetTickCount();
+                    // We DO NOT call OnLevelComplete() here yet. We wait for the transition to finish.
+                }
+
+                if (fovEffect && camera) fovEffect->Update(camera->x, camera->y);
+            }
         }
     }
 
 
-    if (camera) camera->Update();
-    if (background) background->Update();
-
-    game_engine->UpdateSprites(); // Bu, oyuncu dahil tüm spriteları günceller
-
-    // Düşman spawn mantığı
-    if (GetTickCount() - g_dwLastSpawnTime > ENEMY_SPAWN_INTERVAL)
-    {
-        SpawnEnemyNearPlayer();
-        g_dwLastSpawnTime = GetTickCount();
-    }
-
-    if (GetTickCount() - g_dwLastClosestEnemySpawnTime > CLOSEST_ENEMY_SPAWN_INTERVAL)
-    {
-        SpawnEnemyNearClosest();
-        g_dwLastClosestEnemySpawnTime = GetTickCount();
-    }
-
-    if (isLevelFinished)
-    {
-        OnLevelComplete();
-        isLevelFinished = false; // Seviye tamamlandıktan sonra sıfırla
-        return; // Yeni seviye yüklendi, bu döngüyü bitir
-    }
-
-    if (fovEffect && camera) fovEffect->Update(camera->x, camera->y);
-
+    // Painting happens every cycle, regardless of game state (playing, dead, or transition)
     HWND hWindow = game_engine->GetWindow();
     if (hWindow)
     {
         HDC hDC = GetDC(hWindow);
         if (hDC)
         {
-            GamePaint(offscreenDC); // offscreenDC'ye çizim yap
+            GamePaint(offscreenDC); // Draw everything to the offscreen buffer
             BitBlt(hDC, 0, 0, game_engine->GetWidth(), game_engine->GetHeight(),
-                offscreenDC, 0, 0, SRCCOPY); // Ekrana kopyala
+                offscreenDC, 0, 0, SRCCOPY); // Copy buffer to screen
             ReleaseDC(hWindow, hDC);
         }
     }
 }
+
+
+// NEW: This function handles drawing all UI elements.
+void DrawUI(HDC hDC)
+{
+    if (charSprite == nullptr || g_hUIFont == NULL || g_hBigFont == NULL) return;
+
+    Player* pPlayer = static_cast<Player*>(charSprite);
+    HFONT hOldFont = (HFONT)SelectObject(hDC, g_hUIFont);
+    SetBkMode(hDC, TRANSPARENT);
+
+    if (g_bInLevelTransition)
+    {
+        HBRUSH hBrush = CreateSolidBrush(RGB(0, 0, 0));
+        RECT rcOverlay = { 0, 0, window_X, window_Y };
+        FillRect(hDC, &rcOverlay, hBrush);
+        DeleteObject(hBrush);
+
+        SetTextColor(hDC, RGB(170, 255, 170));
+        SelectObject(hDC, g_hBigFont);
+
+        std::wstring levelText = L"LEVEL " + std::to_wstring(currentLevel) + L" COMPLETE";
+        DrawTextW(hDC, levelText.c_str(), -1, &rcOverlay, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+        SelectObject(hDC, hOldFont);
+        return;
+    }
+
+    SetTextColor(hDC, RGB(255, 255, 255));
+    SelectObject(hDC, g_hUIFont);
+
+    std::wstring text;
+    int yPos = 10;
+    int xPos = 10;
+    int yIncrement = 20;
+
+    text = L"Health: " + std::to_wstring(pPlayer->GetHealth());
+    TextOutW(hDC, xPos, yPos, text.c_str(), static_cast<int>(text.length()));
+    yPos += yIncrement;
+
+    text = L"Armor: " + std::to_wstring(pPlayer->GetArmor());
+    TextOutW(hDC, xPos, yPos, text.c_str(), static_cast<int>(text.length()));
+    yPos += yIncrement;
+
+    text = L"Score: " + std::to_wstring(pPlayer->GetScore());
+    TextOutW(hDC, xPos, yPos, text.c_str(), static_cast<int>(text.length()));
+    yPos += yIncrement;
+
+    int requiredKeys = std::min(4, currentLevel);
+    text = L"Keys: " + std::to_wstring(pPlayer->GetKeys()) + L" / " + std::to_wstring(requiredKeys);
+    TextOutW(hDC, xPos, yPos, text.c_str(), static_cast<int>(text.length()));
+
+    if (pPlayer->IsDead()) {
+        SetTextColor(hDC, RGB(255, 0, 0));
+        SelectObject(hDC, g_hBigFont);
+
+        std::wstring gameOverText = L"GAME OVER";
+        RECT screenRect = { 0, 0, window_X, window_Y };
+        DrawTextW(hDC, gameOverText.c_str(), -1, &screenRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+        SelectObject(hDC, g_hUIFont);
+        SetTextColor(hDC, RGB(220, 220, 220));
+
+        yPos = screenRect.bottom / 2 + 60;
+        yIncrement = 25;
+        xPos = window_X / 2 - 150; // Metin için alanı genişlet
+
+        std::wstring hsTitle = L"High Scores";
+        TextOutW(hDC, xPos, yPos, hsTitle.c_str(), static_cast<int>(hsTitle.length()));
+        yPos += yIncrement;
+
+        int rank = 1;
+        for (const auto& entry : g_HighScores)
+        {
+            std::wstring wTimestamp(entry.timestamp.begin(), entry.timestamp.end());
+            std::wstring scoreText = std::to_wstring(rank) + L". " + std::to_wstring(entry.score) + L"  (" + wTimestamp + L")";
+            TextOutW(hDC, xPos, yPos, scoreText.c_str(), static_cast<int>(scoreText.length()));
+            yPos += yIncrement;
+            rank++;
+        }
+
+        // YENİ: "Tekrar Oyna" talimatını ekle
+        yPos += 20; // Yüksek skor listesinin altına biraz boşluk bırak
+        std::wstring restartText = L"Press SPACE to Play Again";
+        SetTextColor(hDC, RGB(255, 255, 150)); // Açık sarı bir renk
+
+        // Metni ekranın ortasına yatay olarak hizala
+        RECT rcRestartText = { 0, yPos, window_X, yPos + 30 };
+        DrawTextW(hDC, restartText.c_str(), -1, &rcRestartText, DT_CENTER | DT_SINGLELINE);
+    }
+
+    SelectObject(hDC, hOldFont);
+}
+
 
 void SpawnEnemyNearPlayer()
 {
@@ -491,33 +580,33 @@ void SpawnEnemyNearClosest()
     }
 }
 
-void HandleKeys()
-{
-    // Player sınıfı kendi girişlerini yönetiyor
+void HandleKeys() {
+
+    // YENİ: Oyuncu öldüğünde yeniden başlatmak için SPACE tuşunu kontrol et
+    if (charSprite->IsDead() && GetAsyncKeyState(VK_SPACE) & 0x8000)
+    {
+        RestartGame();
+    }
 }
 
 void MouseButtonDown(int x, int y, BOOL bLeft)
 {
     if (bLeft && camera && charSprite)
     {
-        // Oyuncu ölmüşse ateş etme
         Player* pPlayerCasted = static_cast<Player*>(charSprite);
         if (pPlayerCasted && pPlayerCasted->IsDead()) return;
 
         int targetWorldX = x + camera->x;
         int targetWorldY = y + camera->y;
 
-        if (pPlayerCasted) // Zaten cast edilmişti, tekrar Player* pPlayer = ... gerek yok
+        if (pPlayerCasted)
         {
             pPlayerCasted->Fire(targetWorldX, targetWorldY);
         }
     }
 }
 
-void MouseButtonUp(int x, int y, BOOL bLeft)
-{
-    // Gerekirse implemente edilebilir
-}
+void MouseButtonUp(int x, int y, BOOL bLeft) {}
 
 void MouseMove(int x, int y)
 {
@@ -525,17 +614,13 @@ void MouseMove(int x, int y)
         fovEffect->UpdateMousePos(x, y);
 }
 
-void HandleJoystick(JOYSTATE jsJoystickState)
-{
-    // Joystick desteği gerekirse implemente edilebilir
-}
+void HandleJoystick(JOYSTATE jsJoystickState) {}
 
-// GenerateMaze, GenerateLevel tarafından kapsandığı için kaldırılabilir veya basitleştirilebilir
 void GenerateMaze(Bitmap* tileBit)
 {
     if (!mazeGenerator || !wallBitmap || !game_engine || TILE_SIZE == 0) return;
 
-    mazeGenerator->generateMaze(); // Sadece temel labirent yollarını ve duvarlarını oluşturur
+    mazeGenerator->generateMaze();
     const std::vector<std::vector<int>>& mazeArray = mazeGenerator->GetMaze();
     if (mazeArray.empty() || mazeArray[0].empty()) return;
 
@@ -569,9 +654,9 @@ void GenerateLevel(int level)
         return;
     }
 
-    CleanupLevel(); // Önceki seviyenin sprite'larını temizle (oyuncu hariç)
+    CleanupLevel();
 
-    mazeGenerator->SetupLevel(level); // Yeni seviye için mantıksal labirenti oluştur
+    mazeGenerator->SetupLevel(level);
     const auto& mazeArray = mazeGenerator->GetMaze();
     if (mazeArray.empty() || mazeArray[0].empty())
     {
@@ -608,29 +693,27 @@ void GenerateLevel(int level)
             case TileType::WEAPON_AMMO: itemBitmap = ammoPWBitmap; break;
             case TileType::EXTRA_SCORE: itemBitmap = pointPWBitmap; break;
             case TileType::END_POINT: itemBitmap = endPointBitmap; break;
-                // case TileType::SECOND_WEAPON: itemBitmap = secondWeaponBitmap; break;
 
-            case TileType::START_POINT: // Başlangıç noktası için özel bir sprite yoksa, zemin çizilir
+            case TileType::START_POINT:
             case TileType::PATH:
             default:
                 if (floorBitmap) AddNonCollidableTile(posX, posY, floorBitmap);
-                continue; // Item oluşturma mantığını atla
+                continue;
             }
 
-            if (itemBitmap) // Eğer bir item ise
+            if (itemBitmap)
             {
                 Sprite* item = new Sprite(itemBitmap, rcBounds, BA_STOP, SPRITE_TYPE_GENERIC);
                 item->SetPosition(pos);
                 game_engine->AddSprite(item);
-                if (floorBitmap) AddNonCollidableTile(posX, posY, floorBitmap); // Item'ın altına zemin
+                if (floorBitmap) AddNonCollidableTile(posX, posY, floorBitmap);
             }
             else if (static_cast<TileType>(tileValue) != TileType::WALL) {
-                if (floorBitmap) AddNonCollidableTile(posX, posY, floorBitmap); // Duvar değilse ve item da değilse zemin çiz
+                if (floorBitmap) AddNonCollidableTile(posX, posY, floorBitmap);
             }
         }
     }
 
-    // Oyuncuyu başlangıç noktasına yerleştir
     if (charSprite && mazeGenerator)
     {
         std::pair<int, int> startPosCoords = mazeGenerator->GetStartPos();
@@ -653,7 +736,7 @@ void LoadBitmaps(HDC hDC)
 
     floorBitmap = new Bitmap(hDC, "tile.bmp");
     wallBitmap = new Bitmap(hDC, "wall.bmp");
-    if (instance) // instance null değilse
+    if (instance)
     {
         charBitmap = new Bitmap(hDC, IDB_BITMAP3, instance);
         _pEnemyBitmap = new Bitmap(hDC, IDB_ENEMY, instance);
@@ -675,16 +758,14 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
     SpriteType hitterType = pSpriteHitter->GetType();
     SpriteType hitteeType = pSpriteHittee->GetType();
 
-    // Oyuncu ölmüşse, başka çarpışmaları işleme (özellikle hasar verenleri)
     if (charSprite) {
         Player* castedPlayer = static_cast<Player*>(charSprite);
         if (castedPlayer && castedPlayer->IsDead()) {
-            // Sadece duvarla çarpışmaya izin ver (hareketi durdurmak için)
             if ((pSpriteHitter == charSprite && hitteeType == SPRITE_TYPE_WALL) ||
                 (pSpriteHittee == charSprite && hitterType == SPRITE_TYPE_WALL)) {
                 return TRUE;
             }
-            return FALSE; // Diğer tüm çarpışmaları yoksay
+            return FALSE;
         }
     }
 
@@ -701,43 +782,40 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
         return FALSE;
     }
 
-    // Oyuncu mermisi
     if (hitterType == SPRITE_TYPE_PLAYER_MISSILE)
     {
         if (hitteeType == SPRITE_TYPE_WALL) { pSpriteHitter->Kill(); return FALSE; }
         if (hitteeType == SPRITE_TYPE_ENEMY) { pSpriteHitter->Kill(); pSpriteHittee->Kill(); if (charSprite) static_cast<Player*>(charSprite)->AddScore(10); return FALSE; }
-        if (hitteeType == SPRITE_TYPE_PLAYER) return FALSE; // Kendiyle çarpışmaz
+        if (hitteeType == SPRITE_TYPE_PLAYER) return FALSE;
     }
-    else if (hitteeType == SPRITE_TYPE_PLAYER_MISSILE) // Simetrik
+    else if (hitteeType == SPRITE_TYPE_PLAYER_MISSILE)
     {
         if (hitterType == SPRITE_TYPE_WALL) { pSpriteHittee->Kill(); return FALSE; }
         if (hitterType == SPRITE_TYPE_ENEMY) { pSpriteHittee->Kill(); pSpriteHitter->Kill(); if (charSprite) static_cast<Player*>(charSprite)->AddScore(10); return FALSE; }
         if (hitterType == SPRITE_TYPE_PLAYER) return FALSE;
     }
 
-    // Düşman mermisi
     if (hitterType == SPRITE_TYPE_ENEMY_MISSILE)
     {
         if (hitteeType == SPRITE_TYPE_WALL) { pSpriteHitter->Kill(); return FALSE; }
         if (hitteeType == SPRITE_TYPE_PLAYER && pSpriteHittee == charSprite) {
             pSpriteHitter->Kill();
-            static_cast<Player*>(pSpriteHittee)->TakeDamage(12); // Varsayılan mermi hasarı
+            static_cast<Player*>(pSpriteHittee)->TakeDamage(12);
             return FALSE;
         }
-        if (hitteeType == SPRITE_TYPE_ENEMY) return FALSE; // Kendiyle çarpışmaz
+        if (hitteeType == SPRITE_TYPE_ENEMY) return FALSE;
     }
-    else if (hitteeType == SPRITE_TYPE_ENEMY_MISSILE) // Simetrik
+    else if (hitteeType == SPRITE_TYPE_ENEMY_MISSILE)
     {
         if (hitterType == SPRITE_TYPE_WALL) { pSpriteHittee->Kill(); return FALSE; }
         if (hitterType == SPRITE_TYPE_PLAYER && pSpriteHitter == charSprite) {
             pSpriteHittee->Kill();
-            static_cast<Player*>(pSpriteHitter)->TakeDamage(12); // Varsayılan mermi hasarı
+            static_cast<Player*>(pSpriteHitter)->TakeDamage(12);
             return FALSE;
         }
         if (hitterType == SPRITE_TYPE_ENEMY) return FALSE;
     }
 
-    // Oyuncu ile ilgili diğer çarpışmalar
     Sprite* pOtherSpriteForPlayer = nullptr;
     if (pSpriteHitter == charSprite) {
         pPlayer = static_cast<Player*>(pSpriteHitter);
@@ -752,7 +830,6 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
         Bitmap* pOtherBitmap = pOtherSpriteForPlayer->GetBitmap();
         SpriteType otherType = pOtherSpriteForPlayer->GetType();
 
-        // Item'lar
         if (pOtherBitmap == keyBitmap) { pPlayer->AddKey(); pOtherSpriteForPlayer->Kill(); return FALSE; }
         if (pOtherBitmap == healthPWBitmap) { pPlayer->AddHealth(20); pOtherSpriteForPlayer->Kill(); return FALSE; }
         if (pOtherBitmap == armorPWBitmap) { pPlayer->AddArmor(20); pOtherSpriteForPlayer->Kill(); return FALSE; }
@@ -764,29 +841,28 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
             return FALSE;
         }
 
-        // Oyuncu vs Düşman (Temas)
         if (otherType == SPRITE_TYPE_ENEMY) {
             Enemy* pEnemy = static_cast<Enemy*>(pOtherSpriteForPlayer);
             if (pEnemy) {
                 if (pEnemy->GetEnemyType() == EnemyType::CHASER) pPlayer->TakeDamage(1);
-                else if (pEnemy->GetEnemyType() == EnemyType::TURRET) pPlayer->TakeDamage(1); // Turret temas hasarı
+                else if (pEnemy->GetEnemyType() == EnemyType::TURRET) pPlayer->TakeDamage(1);
             }
-            return TRUE; // Hareketi engelle
+            return TRUE;
         }
 
-        // Oyuncu vs Duvar
-        if (otherType == SPRITE_TYPE_WALL) return TRUE; // Hareketi engelle
+        if (otherType == SPRITE_TYPE_WALL) return TRUE;
     }
 
-    return FALSE; // Diğer tüm durumlar için engelleme yok
+    return FALSE;
 }
 
+// MODIFIED: This function is now called AFTER the level transition screen.
 void OnLevelComplete()
 {
     currentLevel++;
-    CleanupLevel(); // Oyuncuyu koruyarak temizle
+    // CleanupLevel is called by GenerateLevel now to ensure correct order
     GenerateLevel(currentLevel);
-    g_dwLastSpawnTime = GetTickCount(); // Zamanlayıcıları sıfırla
+    g_dwLastSpawnTime = GetTickCount();
     g_dwLastClosestEnemySpawnTime = GetTickCount();
 }
 
@@ -796,14 +872,105 @@ void CleanupLevel()
     nonCollidableTiles.clear();
 
     if (charSprite) {
-        game_engine->RemoveSprite(charSprite); // Oyuncuyu geçici olarak çıkar
+        game_engine->RemoveSprite(charSprite);
     }
-    game_engine->CleanupSprites(); // Geri kalan her şeyi sil
+    game_engine->CleanupSprites();
 
     if (charSprite) {
-        // Eğer oyuncu bir önceki seviyede ölmediyse ve hala geçerliyse geri ekle.
-        // Player::IsDead() kontrolü burada da yapılabilir.
-        // Ancak charSprite'ı null yapmadıysak, AddSprite güvenli olmalı.
         game_engine->AddSprite(charSprite);
+        charSprite->ResetKeys();
     }
+}
+
+
+
+// DEĞİŞTİRİLDİ: Dosyadan zaman damgalı yüksek skorları yükler.
+void LoadHighScores()
+{
+    std::ifstream file(HIGH_SCORE_FILE);
+    g_HighScores.clear();
+    std::string line;
+    if (file.is_open())
+    {
+        while (std::getline(file, line))
+        {
+            std::stringstream ss(line);
+            std::string scoreStr, timestamp;
+
+            // Satırı ayrıştır: skor,zaman_damgası
+            if (std::getline(ss, scoreStr, ',') && std::getline(ss, timestamp))
+            {
+                try {
+                    int score = std::stoi(scoreStr);
+                    g_HighScores.push_back({ score, timestamp });
+                }
+                catch (...) { /* Bozuk satırları yoksay */ }
+            }
+        }
+        file.close();
+    }
+    // Skorları azalan sırada sırala
+    std::sort(g_HighScores.rbegin(), g_HighScores.rend());
+}
+
+// DEĞİŞTİRİLDİ: Dosyaya zaman damgalı yüksek skorları kaydeder.
+void SaveHighScores()
+{
+    std::ofstream file(HIGH_SCORE_FILE);
+    if (file.is_open())
+    {
+        for (const auto& entry : g_HighScores)
+        {
+            file << entry.score << "," << entry.timestamp << std::endl;
+        }
+        file.close();
+    }
+}
+
+// DEĞİŞTİRİLDİ: Yeni skoru zaman damgasıyla ekler, sıralar, listeyi kırpar ve kaydeder.
+void CheckAndSaveScore(int finalScore)
+{
+    HighScoreEntry newEntry = { finalScore, GetCurrentTimestamp() };
+    g_HighScores.push_back(newEntry);
+    std::sort(g_HighScores.rbegin(), g_HighScores.rend()); // Skora göre azalan sıralama
+
+    if (g_HighScores.size() > MAX_HIGH_SCORES)
+    {
+        g_HighScores.resize(MAX_HIGH_SCORES);
+    }
+
+    SaveHighScores();
+}
+
+std::string GetCurrentTimestamp() {
+    std::time_t t = std::time(nullptr);
+    char buffer[100];
+    // Format: YYYY-MM-DD HH:MM:SS
+    if (std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", std::localtime(&t))) {
+        return std::string(buffer);
+    }
+    return ""; // Hata durumunda boş string döndür
+}
+
+// YENİ: Oyunu yeniden başlatan ana fonksiyon
+void RestartGame()
+{
+    if (!charSprite || !game_engine || !mazeGenerator) return;
+
+    // 1. Oyuncu durumunu sıfırla
+    static_cast<Player*>(charSprite)->Reset();
+
+    // 2. Oyun durumunu sıfırla
+    g_bScoreSaved = false;
+    currentLevel = 1;
+
+    // 3. Eski seviyeyi temizle
+    CleanupLevel(); // Bu fonksiyon zaten oyuncu dışındaki tüm spriteları temizler
+
+    // 4. Yeni seviye 1'i oluştur
+    GenerateLevel(currentLevel); // Bu aynı zamanda oyuncuyu başlangıç pozisyonuna yerleştirir
+
+    // 6. Zamanlayıcıları sıfırla
+    g_dwLastSpawnTime = GetTickCount();
+    g_dwLastClosestEnemySpawnTime = GetTickCount();
 }

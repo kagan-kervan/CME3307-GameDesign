@@ -22,7 +22,7 @@ Player::Player(Bitmap* pBitmap, MazeGenerator* pMaze)
     m_fSpeed = 250.0f; // Saniyede piksel cinsinden hız
 
     m_iFireCooldown = 0;
-    m_iHealth = 100;
+    m_iHealth = 500;
     m_iArmor = 0;
     m_iKeys = 0;
     m_iScore = 0;
@@ -220,7 +220,7 @@ void Player::TakeDamage(int amount)
 void Player::AddKey(int amount) { m_iKeys += amount; }
 int  Player::GetKeys() const { return m_iKeys; }
 
-void Player::AddHealth(int amount) { m_iHealth = std::min(100, m_iHealth + amount); }
+void Player::AddHealth(int amount) { m_iHealth = std::min(500, m_iHealth + amount); }
 int  Player::GetHealth() const { return m_iHealth; }
 
 void Player::AddArmor(int amount) { m_iArmor = std::min(100, m_iArmor + amount); }
@@ -234,3 +234,15 @@ bool Player::HasSecondWeapon() const { return m_bHasSecondWeapon; }
 
 void Player::AddSecondaryAmmo(int amount) { if (m_bHasSecondWeapon) m_iSecondaryAmmo += amount; }
 int  Player::GetSecondaryAmmo() const { return m_iSecondaryAmmo; }
+
+void Player::Reset() {
+
+    m_iFireCooldown = 0;
+    m_iHealth = 500;
+    m_iArmor = 0;
+    m_iKeys = 0;
+    m_iScore = 0;
+    m_bHasSecondWeapon = false;
+    m_iSecondaryAmmo = 0;
+    m_currentWeapon = WeaponType::PISTOL;
+}

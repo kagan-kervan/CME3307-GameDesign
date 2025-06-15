@@ -20,7 +20,16 @@ struct Tile {
     int x, y;
     Bitmap* bitmap;
 };
+// YENÝ: Bir skoru ve zaman damgasýný tutmak için struct yapýsý
+struct HighScoreEntry {
+    int score;
+    std::string timestamp;
 
+    // Skor'a göre (azalan) sýralama için karþýlaþtýrma operatörü
+    bool operator<(const HighScoreEntry& other) const {
+        return score < other.score;
+    }
+};
 
 //--------------------------------------------------
 //Global Variables (Declarations)
@@ -65,5 +74,13 @@ void OnLevelComplete();
 // Düþman spawn fonksiyonlarý
 void SpawnEnemyNearPlayer();
 void SpawnEnemyNearClosest(); // YENÝ FONKSÝYON BÝLDÝRÝMÝ
+
+
+void DrawUI(HDC hDC);
+void LoadHighScores();
+void SaveHighScores();
+void CheckAndSaveScore(int finalScore);
+void RestartGame();
+std::string GetCurrentTimestamp(); // YENÝ
 
 #endif //GAME_H
