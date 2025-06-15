@@ -388,34 +388,42 @@ void GameCycle()
 }
 
 
-// NEW: This function handles drawing all UI elements.
+// Game.cpp -> DrawUI
+
+// Bu fonksiyon, seviye geçiş ekranı, oyuncu durumu, mermi durumu ve oyun sonu ekranı gibi
+// tüm kullanıcı arayüzü elemanlarını çizer.
 void DrawUI(HDC hDC)
 {
+    // Gerekli nesneler yoksa veya fontlar yüklenmemişse çizim yapma
     if (charSprite == nullptr || g_hUIFont == NULL || g_hBigFont == NULL) return;
 
     Player* pPlayer = static_cast<Player*>(charSprite);
     HFONT hOldFont = (HFONT)SelectObject(hDC, g_hUIFont);
     SetBkMode(hDC, TRANSPARENT);
 
+    // 1. Seviye Geçiş Ekranı
+    // Eğer oyun seviye geçişi durumundaysa, sadece onu çiz ve fonksiyondan çık.
     if (g_bInLevelTransition)
     {
+        // Ekranı karart
         HBRUSH hBrush = CreateSolidBrush(RGB(0, 0, 0));
         RECT rcOverlay = { 0, 0, window_X, window_Y };
         FillRect(hDC, &rcOverlay, hBrush);
         DeleteObject(hBrush);
 
-        SetTextColor(hDC, RGB(170, 255, 170));
+        // Büyük font ile "LEVEL X COMPLETE" yaz
+        SetTextColor(hDC, RGB(170, 255, 170)); // Açık yeşil
         SelectObject(hDC, g_hBigFont);
-
         std::wstring levelText = L"LEVEL " + std::to_wstring(currentLevel) + L" COMPLETE";
         DrawTextW(hDC, levelText.c_str(), -1, &rcOverlay, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
-        SelectObject(hDC, hOldFont);
-        return;
+        SelectObject(hDC, hOldFont); // Orijinal fontu geri yükle
+        return; // Başka bir şey çizme
     }
 
-    SetTextColor(hDC, RGB(255, 255, 255));
-    SelectObject(hDC, g_hUIFont);
+    // 2. Oyuncu Durum Bilgileri (Sol Üst)
+    SetTextColor(hDC, RGB(255, 255, 255)); // Yazı rengi beyaz
+    SelectObject(hDC, g_hUIFont);          // Standart UI fontunu seç
 
     std::wstring text;
     int yPos = 10;
@@ -438,20 +446,44 @@ void DrawUI(HDC hDC)
     text = L"Keys: " + std::to_wstring(pPlayer->GetKeys()) + L" / " + std::to_wstring(requiredKeys);
     TextOutW(hDC, xPos, yPos, text.c_str(), static_cast<int>(text.length()));
 
-    if (pPlayer->IsDead()) {
-        SetTextColor(hDC, RGB(255, 0, 0));
-        SelectObject(hDC, g_hBigFont);
+    // --- YENİ: MERMİ DURUMU GÖSTERGESİ (SOL ALT) ---
+    // Player nesnesinden mevcut silahın istatistiklerini al
+    const WeaponStats& stats = pPlayer->GetCurrentWeaponStats();
+    std::wstring ammoText;
 
+    if (pPlayer->IsReloading()) {
+        ammoText = L"RELOADING...";
+        SetTextColor(hDC, RGB(255, 100, 100)); // Reload sırasında kırmızımsı renk
+    }
+    else {
+        // Yedek mermi sonsuz ise '∞' sembolünü kullan, değilse sayıyı yazdır
+        std::wstring totalAmmoStr = (stats.totalAmmo == -1) ? L"∞" : std::to_wstring(stats.totalAmmo);
+        ammoText = L"Ammo: " + std::to_wstring(stats.currentAmmoInClip) + L" / " + totalAmmoStr;
+        SetTextColor(hDC, RGB(255, 255, 255)); // Normal durumda beyaz renk
+    }
+
+    // Metni ekranın sol altına konumlandır
+    RECT screenRect = { 0, 0, window_X, window_Y };
+    RECT ammoRect = { 10, screenRect.bottom - 40, 200, screenRect.bottom - 10 };
+    DrawTextW(hDC, ammoText.c_str(), -1, &ammoRect, DT_LEFT | DT_SINGLELINE);
+    // --------------------------------------------------
+
+    // 3. Oyun Sonu Ekranı
+    if (pPlayer->IsDead()) {
+        SetTextColor(hDC, RGB(255, 0, 0)); // Kırmızı
+        SelectObject(hDC, g_hBigFont);     // Büyük font
+
+        // "GAME OVER" yazısını ortala
         std::wstring gameOverText = L"GAME OVER";
-        RECT screenRect = { 0, 0, window_X, window_Y };
         DrawTextW(hDC, gameOverText.c_str(), -1, &screenRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
+        // Yüksek skorları göstermek için fontu ve rengi ayarla
         SelectObject(hDC, g_hUIFont);
         SetTextColor(hDC, RGB(220, 220, 220));
 
-        yPos = screenRect.bottom / 2 + 60;
+        yPos = screenRect.bottom / 2 + 60; // "GAME OVER" yazısının altına
         yIncrement = 25;
-        xPos = window_X / 2 - 150; // Metin için alanı genişlet
+        xPos = window_X / 2 - 150;
 
         std::wstring hsTitle = L"High Scores";
         TextOutW(hDC, xPos, yPos, hsTitle.c_str(), static_cast<int>(hsTitle.length()));
@@ -467,19 +499,16 @@ void DrawUI(HDC hDC)
             rank++;
         }
 
-        // YENİ: "Tekrar Oyna" talimatını ekle
-        yPos += 20; // Yüksek skor listesinin altına biraz boşluk bırak
+        // "Tekrar Oyna" talimatını ekle
+        yPos += 20;
         std::wstring restartText = L"Press SPACE to Play Again";
-        SetTextColor(hDC, RGB(255, 255, 150)); // Açık sarı bir renk
-
-        // Metni ekranın ortasına yatay olarak hizala
+        SetTextColor(hDC, RGB(255, 255, 150)); // Açık sarı
         RECT rcRestartText = { 0, yPos, window_X, yPos + 30 };
         DrawTextW(hDC, restartText.c_str(), -1, &rcRestartText, DT_CENTER | DT_SINGLELINE);
     }
 
-    SelectObject(hDC, hOldFont);
+    SelectObject(hDC, hOldFont); // İşin bittiğinde orijinal fontu her zaman geri yükle
 }
-
 
 void SpawnEnemyNearPlayer()
 {
