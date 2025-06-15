@@ -22,10 +22,10 @@ std::vector<Tile> nonCollidableTiles;
 RECT globalBounds = { 0, 0, 4000, 4000 }; // Geniş bir alan
 
 DWORD g_dwLastSpawnTime = 0;
-const DWORD ENEMY_SPAWN_INTERVAL = 6000; // 6 saniye
+const DWORD ENEMY_SPAWN_INTERVAL = 10000; // 6 saniye
 
 DWORD g_dwLastClosestEnemySpawnTime = 0;
-const DWORD CLOSEST_ENEMY_SPAWN_INTERVAL = 3000; // 3 saniye
+const DWORD CLOSEST_ENEMY_SPAWN_INTERVAL = 5000; // 3 saniye
 HCURSOR g_hCrosshairCursor = NULL;
 GameEngine* game_engine;
 Player* charSprite;
