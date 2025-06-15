@@ -30,6 +30,7 @@
 #define IDB_BITMAP3			  2015
 #define IDB_ENEMY			  2016
 #define IDB_TURRET_ENEMY      2017
+#define IDB_ROBOT_TURRET_ENEMY  2018
 //-----------------------------------------------------------------
 // Wave Sounds                Range : 3000 - 3999
 //-----------------------------------------------------------------

@@ -3,7 +3,7 @@
 #define GAME_H
 #pragma once
 #include <windows.h>
-#include "Resource.h" // IDB_TURRET_ENEMY burada tanýmlý olmalý (veya projenizin ana resource.h'ý)
+#include "Resource.h" 
 #include "GameEngine.h"
 #include "Bitmap.h"
 #include "Sprite.h"
@@ -15,17 +15,13 @@
 #include "FOVBackground.h"
 #include <vector>
 
-//Structures to be used
 struct Tile {
     int x, y;
     Bitmap* bitmap;
 };
-// YENÝ: Bir skoru ve zaman damgasýný tutmak için struct yapýsý
 struct HighScoreEntry {
     int score;
     std::string timestamp;
-
-    // Skor'a göre (azalan) sýralama için karþýlaþtýrma operatörü
     bool operator<(const HighScoreEntry& other) const {
         return score < other.score;
     }
@@ -39,8 +35,9 @@ extern HINSTANCE   instance;
 extern GameEngine* game_engine;
 extern Player* charSprite;
 extern MazeGenerator* mazeGenerator;
-extern Bitmap* _pEnemyBitmap;           // Genel düþman için
-extern Bitmap* _pTurretEnemyBitmap;     // YENÝ: Turret düþmaný için
+extern Bitmap* _pEnemyBitmap;
+extern Bitmap* _pTurretEnemyBitmap;
+extern Bitmap* _pRobotTurretEnemyBitmap; // YENÝ: Robot Turret düþmaný için bitmap
 extern Bitmap* _pEnemyMissileBitmap;
 extern int TILE_SIZE;
 extern FOVBackground* fovEffect;
@@ -57,9 +54,9 @@ extern Bitmap* endPointBitmap;
 extern Bitmap* secondWeaponBitmap;
 extern Bitmap* _pPlayerMissileBitmap;
 
-// Düþman spawn zamanlayýcýlarý için deðiþkenler
 extern DWORD g_dwLastSpawnTime;
 extern DWORD g_dwLastClosestEnemySpawnTime;
+extern DWORD g_dwLastRobotTurretSpawnTime; // YENÝ: Robot Turret spawn zamanlayýcýsý
 extern bool isLevelFinished;
 
 extern int  currentLevel;
@@ -73,10 +70,9 @@ void CleanupLevel();
 void LoadBitmaps(HDC hDC);
 void OnLevelComplete();
 
-// Düþman spawn fonksiyonlarý
 void SpawnEnemyNearPlayer();
 void SpawnEnemyNearClosest();
-
+void SpawnRobotTurretEnemy(); // YENÝ: Robot Turret spawn fonksiyonu
 
 void DrawUI(HDC hDC);
 void LoadHighScores();

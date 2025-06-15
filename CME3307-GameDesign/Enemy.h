@@ -8,7 +8,8 @@
 class GameEngine;
 extern int TILE_SIZE;
 
-enum class EnemyType { CHASER, TURRET };
+// YENÝ: Robot Turret düþman tipi eklendi
+enum class EnemyType { CHASER, TURRET, ROBOT_TURRET };
 enum class AIState { IDLE, CHASING, ATTACKING };
 
 class Enemy : public Sprite
@@ -19,6 +20,11 @@ public:
     EnemyType GetEnemyType() const { return m_type; };
     virtual SPRITEACTION Update(); // Override edeceðiz
 
+    // YENÝ: Düþmanlarýn can yönetimi için fonksiyonlar
+    void TakeDamage(int amount);
+    bool IsDead() const;
+    int GetHealth() const { return m_iHealth; } // Ýsteðe baðlý, debug veya UI için
+
 private:
     void UpdateAI();
     bool FindPath();
@@ -26,7 +32,6 @@ private:
     bool HasLineOfSightToPlayer();
     void AttackPlayer();
 
-    // YENÝ: Duvar çarpýþmasýný ve hýz ayarlamasýný yönetmek için yardýmcý fonksiyon
     void ResolveWallCollisions(POINT& desiredVelocity);
 
     MazeGenerator* m_pMaze;
@@ -38,4 +43,7 @@ private:
     int m_pathIndex;
     int m_attackCooldown;
     int m_pathfindingCooldown;
+
+    // YENÝ: Düþman caný
+    int m_iHealth;
 };
