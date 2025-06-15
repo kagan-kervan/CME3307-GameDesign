@@ -181,6 +181,7 @@ void Player::StartReload()
         return;
     }
     m_iReloadTimer = stats.reloadTime;
+    PlaySound(MAKEINTRESOURCE(IDW_RELOAD), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT);
 }
 
 
@@ -243,6 +244,7 @@ void Player::Fire(int targetX, int targetY)
         break;
     }
     }
+    PlaySound(MAKEINTRESOURCE(IDW_SHOOT), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT);
 }
 
 void Player::TakeDamage(int amount)
