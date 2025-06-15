@@ -80,5 +80,7 @@ void SaveHighScores();
 void CheckAndSaveScore(int finalScore);
 void RestartGame();
 std::string GetCurrentTimestamp();
+// YENÝ: Yardýmcý fonksiyonun deklarasyonu (bildirimi)
+double LerpAngle(double a, double b, float t);
 
 #endif //GAME_H
