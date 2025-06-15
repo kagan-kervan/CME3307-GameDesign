@@ -83,6 +83,7 @@ public:
   // Accessor Methods
   SpriteType GetType() { return m_eSpriteType; }; // YENÝ: Tipi döndüren metot
   Bitmap* GetBitmap()               { return m_pBitmap; };
+  void SetBitmap(Bitmap* newBitmap) { m_pBitmap = newBitmap; }
   void    SetNumFrames(int iNumFrames, BOOL bOneCycle = FALSE);
   void    SetFrameDelay(int iFrameDelay) { m_iFrameDelay = iFrameDelay; };
   RECT&   GetPosition()             { return m_rcPosition; };
