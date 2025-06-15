@@ -68,6 +68,10 @@ void Player::SwitchWeapon(WeaponType newWeapon)
     m_currentWeapon = newWeapon;
 }
 
+// Player.cpp
+
+// ... (diğer fonksiyonlar aynı)
+
 void Player::HandleInput(float fDeltaTime)
 {
     // Silah Değiştirme
@@ -77,9 +81,10 @@ void Player::HandleInput(float fDeltaTime)
 
     // Hareket Hızı
     float currentSpeed = m_fSpeed;
+    // SPRINT_SPEED_MULTIPLIER'ın Player.h'de tanımlı olduğundan emin olun. Örnek: const float SPRINT_SPEED_MULTIPLIER = 1.5f;
     if (GetAsyncKeyState(VK_LSHIFT) & 0x8000)
     {
-        currentSpeed *= SPRINT_SPEED_MULTIPLIER; // SPRINT_SPEED_MULTIPLIER Player.h'de tanımlı olmalı (örn: const float SPRINT_SPEED_MULTIPLIER = 1.5f;)
+        currentSpeed *= SPRINT_SPEED_MULTIPLIER;
     }
 
     // Hareket Yönü
@@ -92,37 +97,79 @@ void Player::HandleInput(float fDeltaTime)
 
     if (dirX != 0.0f || dirY != 0.0f)
     {
+        // Yönü normalize et (çapraz hız sorununu çözmek için)
         float length = std::sqrt(dirX * dirX + dirY * dirY);
         if (length > 0) {
             dirX /= length;
             dirY /= length;
         }
 
+        // Bu frame'deki hareket miktarını hesapla
         float moveAmountX = dirX * currentSpeed * fDeltaTime;
         float moveAmountY = dirY * currentSpeed * fDeltaTime;
 
-        float newPosX_f = static_cast<float>(m_rcPosition.left) + moveAmountX;
-        float newPosY_f = static_cast<float>(m_rcPosition.top) + moveAmountY;
+        // Mevcut pozisyonu float olarak al
+        float currentPosX_f = static_cast<float>(m_rcPosition.left);
+        float currentPosY_f = static_cast<float>(m_rcPosition.top);
 
-        RECT rcNewPos = {
-            static_cast<int>(newPosX_f),
-            static_cast<int>(newPosY_f),
-            static_cast<int>(newPosX_f + GetWidth()),
-            static_cast<int>(newPosY_f + GetHeight())
+        // --- YENİ ÇARPIŞMA MANTIĞI: X ve Y Eksenlerini Ayrı Kontrol Et ---
+
+        // 1. ADIM: Sadece X eksenindeki hareketi dene
+        float nextPosX_f = currentPosX_f + moveAmountX;
+        RECT nextRectX = {
+            static_cast<int>(nextPosX_f),
+            m_rcPosition.top, // Y pozisyonu şimdilik aynı
+            static_cast<int>(nextPosX_f + GetWidth()),
+            m_rcPosition.bottom
         };
 
-        bool collision = false;
-        if (m_pMaze && TILE_SIZE > 0) {
-            if (m_pMaze->IsWall(rcNewPos.left / TILE_SIZE, rcNewPos.top / TILE_SIZE)) collision = true;
-            if (!collision && m_pMaze->IsWall((rcNewPos.right - 1) / TILE_SIZE, rcNewPos.top / TILE_SIZE)) collision = true;
-            if (!collision && m_pMaze->IsWall(rcNewPos.left / TILE_SIZE, (rcNewPos.bottom - 1) / TILE_SIZE)) collision = true;
-            if (!collision && m_pMaze->IsWall((rcNewPos.right - 1) / TILE_SIZE, (rcNewPos.bottom - 1) / TILE_SIZE)) collision = true;
+        // X ekseninde çarpışma var mı?
+        bool collisionX = false;
+        if (m_pMaze && TILE_SIZE > 0 && moveAmountX != 0) { // Sadece hareket varsa kontrol et
+            if (m_pMaze->IsWall(nextRectX.left / TILE_SIZE, nextRectX.top / TILE_SIZE) ||
+                m_pMaze->IsWall((nextRectX.right - 1) / TILE_SIZE, nextRectX.top / TILE_SIZE) ||
+                m_pMaze->IsWall(nextRectX.left / TILE_SIZE, (nextRectX.bottom - 1) / TILE_SIZE) ||
+                m_pMaze->IsWall((nextRectX.right - 1) / TILE_SIZE, (nextRectX.bottom - 1) / TILE_SIZE))
+            {
+                collisionX = true;
+            }
         }
 
-        if (!collision)
+        // Eğer X ekseninde çarpışma yoksa, yeni X pozisyonunu uygula
+        if (!collisionX)
         {
-            SetPosition(rcNewPos);
+            currentPosX_f = nextPosX_f;
         }
+
+        // 2. ADIM: Sadece Y eksenindeki hareketi dene (belki de güncellenmiş X pozisyonu ile)
+        float nextPosY_f = currentPosY_f + moveAmountY;
+        RECT nextRectY = {
+            static_cast<int>(currentPosX_f), // X pozisyonu güncellenmiş olabilir
+            static_cast<int>(nextPosY_f),
+            static_cast<int>(currentPosX_f + GetWidth()),
+            static_cast<int>(nextPosY_f + GetHeight())
+        };
+
+        // Y ekseninde çarpışma var mı?
+        bool collisionY = false;
+        if (m_pMaze && TILE_SIZE > 0 && moveAmountY != 0) { // Sadece hareket varsa kontrol et
+            if (m_pMaze->IsWall(nextRectY.left / TILE_SIZE, nextRectY.top / TILE_SIZE) ||
+                m_pMaze->IsWall((nextRectY.right - 1) / TILE_SIZE, nextRectY.top / TILE_SIZE) ||
+                m_pMaze->IsWall(nextRectY.left / TILE_SIZE, (nextRectY.bottom - 1) / TILE_SIZE) ||
+                m_pMaze->IsWall((nextRectY.right - 1) / TILE_SIZE, (nextRectY.bottom - 1) / TILE_SIZE))
+            {
+                collisionY = true;
+            }
+        }
+
+        // Eğer Y ekseninde çarpışma yoksa, yeni Y pozisyonunu uygula
+        if (!collisionY)
+        {
+            currentPosY_f = nextPosY_f;
+        }
+
+        // Son olarak, geçerli olan son pozisyonu ayarla
+        SetPosition(static_cast<int>(currentPosX_f), static_cast<int>(currentPosY_f));
     }
 }
 
