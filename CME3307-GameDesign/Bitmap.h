@@ -39,8 +39,7 @@ public:
   Bitmap(HDC hDC, UINT uiResID, HINSTANCE hInstance);
   Bitmap(HDC hDC, int iWidth, int iHeight, COLORREF crColor = RGB(0, 0, 0));
   virtual ~Bitmap();
-  // YENÝ: HBITMAP'i döndüren metot. Bu, Sprite::Draw içinde gereklidir.
-  HBITMAP GetHBITMAP() const { return m_hBitmap; }
+
   // General Methods
   BOOL Create(HDC hDC, LPTSTR szFileName);
   BOOL Create(HDC hDC, UINT uiResID, HINSTANCE hInstance);

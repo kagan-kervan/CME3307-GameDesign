@@ -14,18 +14,6 @@
 
 #undef max           
 #undef min
-
-// YENİ: LerpAngle fonksiyonunun tanımı (gövdesi) buraya taşındı.
-#ifndef PI
-#define PI 3.14159265358979323846
-#endif
-double LerpAngle(double a, double b, float t)
-{
-    double diff = b - a;
-    if (diff > PI) diff -= 2 * PI;
-    if (diff < -PI) diff += 2 * PI;
-    return a + diff * t;
-}
 //--------------------------------------------------
 //Global Variable Definitions
 //--------------------------------------------------
@@ -793,12 +781,6 @@ void MouseMove(int x, int y)
 {
     if (fovEffect)
         fovEffect->UpdateMousePos(x, y);
-
-    if (charSprite) // charSprite'ın Player* olduğunu varsayıyoruz
-    {
-        // Player* charSprite; olarak tanımlandığı için static_cast'e gerek yok.
-        charSprite->UpdateMousePosition(x, y);
-    }
 }
 
 void HandleJoystick(JOYSTATE jsJoystickState) {}
