@@ -807,7 +807,7 @@ void GenerateLevel(int level)
             charSprite->SetPosition(startPosCoords.first * tile_width, startPosCoords.second * tile_height);
         }
     }
-    if (game_engine) game_engine->PlayMIDISong(TEXT("tribal-sci-fi.mid"));
+    if (game_engine) game_engine->PlayMIDISong(TEXT("duke3d27.mid"));
 }
 
 void AddNonCollidableTile(int x, int y, Bitmap* bitmap)
@@ -926,6 +926,7 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
         if (hitteeType == SPRITE_TYPE_PLAYER && pSpriteHittee == charSprite) {
             pSpriteHitter->Kill();
             static_cast<Player*>(pSpriteHittee)->TakeDamage(12);
+            PlaySound(MAKEINTRESOURCE(IDW_HIT), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT);
             return FALSE;
         }
         if (hitteeType == SPRITE_TYPE_ENEMY) return FALSE; // Düşmanlar kendi mermileriyle çarpışmaz
@@ -936,6 +937,7 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
         if (hitterType == SPRITE_TYPE_PLAYER && pSpriteHitter == charSprite) {
             pSpriteHittee->Kill();
             static_cast<Player*>(pSpriteHitter)->TakeDamage(12);
+            PlaySound(MAKEINTRESOURCE(IDW_HIT), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT);
             return FALSE;
         }
         if (hitterType == SPRITE_TYPE_ENEMY) return FALSE;
@@ -955,11 +957,16 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
         Bitmap* pOtherBitmap = pOtherSpriteForPlayer->GetBitmap();
         SpriteType otherType = pOtherSpriteForPlayer->GetType();
 
-        if (pOtherBitmap == keyBitmap) { pPlayer->AddKey(); pOtherSpriteForPlayer->Kill(); return FALSE; }
-        if (pOtherBitmap == healthPWBitmap) { pPlayer->AddHealth(20); pOtherSpriteForPlayer->Kill(); return FALSE; }
-        if (pOtherBitmap == armorPWBitmap) { pPlayer->AddArmor(20); pOtherSpriteForPlayer->Kill(); return FALSE; }
-        if (pOtherBitmap == pointPWBitmap) { pPlayer->AddScore(50); pOtherSpriteForPlayer->Kill(); return FALSE; }
-        if (pOtherBitmap == ammoPWBitmap) { pPlayer->AddSecondaryAmmo(10); pOtherSpriteForPlayer->Kill(); return FALSE; }
+        if (pOtherBitmap == keyBitmap) {PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT); 
+        pPlayer->AddKey(); pOtherSpriteForPlayer->Kill(); return FALSE; }
+        if (pOtherBitmap == healthPWBitmap) { PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT); 
+        pPlayer->AddHealth(20); pOtherSpriteForPlayer->Kill(); return FALSE; }
+        if (pOtherBitmap == armorPWBitmap) { PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT); 
+        pPlayer->AddArmor(20); pOtherSpriteForPlayer->Kill(); return FALSE; }
+        if (pOtherBitmap == pointPWBitmap) { PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT); 
+        pPlayer->AddScore(50); pOtherSpriteForPlayer->Kill(); return FALSE; }
+        if (pOtherBitmap == ammoPWBitmap) { PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT); 
+        pPlayer->AddSecondaryAmmo(10); pOtherSpriteForPlayer->Kill(); return FALSE; }
         if (pOtherBitmap == endPointBitmap) {
             int requiredKeys = std::min(4, currentLevel);
             if (pPlayer->GetKeys() >= requiredKeys) {

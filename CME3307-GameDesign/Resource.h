@@ -44,3 +44,4 @@
 #define IDW_SHOOT             3009
 #define IDW_EXPLODE           3010
 #define IDW_RELOAD			  3011
+#define IDW_POWERUP			  3012
