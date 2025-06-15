@@ -31,6 +31,8 @@ struct HighScoreEntry {
 //Global Variables (Declarations)
 //--------------------------------------------------
 
+extern Bitmap* _pDeathEffectBitmap;      // YENÝ: Ölüm efekti için bitmap
+
 extern HINSTANCE   instance;
 extern GameEngine* game_engine;
 extern Player* charSprite;

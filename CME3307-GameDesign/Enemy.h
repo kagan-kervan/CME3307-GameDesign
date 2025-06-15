@@ -19,7 +19,7 @@ public:
         MazeGenerator* pMaze, Sprite* pPlayer, EnemyType type);
     EnemyType GetEnemyType() const { return m_type; };
     virtual SPRITEACTION Update(); // Override edeceðiz
-
+    virtual Sprite* AddSprite(); // YENÝ: Ölüm sprite'ý yaratmak için override ediyoruz.
     // YENÝ: Düþmanlarýn can yönetimi için fonksiyonlar
     void TakeDamage(int amount);
     bool IsDead() const;

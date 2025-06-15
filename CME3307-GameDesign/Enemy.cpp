@@ -171,18 +171,56 @@ void Enemy::ResolveWallCollisions(POINT& desiredVelocity)
 
 SPRITEACTION Enemy::Update()
 {
+    // YENÝ: Eðer ölme durumundaysak, AI veya hareketi güncelleme.
+    // Bunun yerine ölüm animasyonunu oluþturma ve kendini öldürme eylemlerini döndür.
     if (m_bDying)
-        return SA_KILL;
+    {
+        return SA_ADDSPRITE | SA_KILL;
+    }
 
+    // Eðer canlýysak, normal AI'yý çalýþtýr
     UpdateAI();
 
     POINT currentVelocity = GetVelocity();
     ResolveWallCollisions(currentVelocity);
     SetVelocity(currentVelocity.x, currentVelocity.y);
 
-    SPRITEACTION action = Sprite::Update();
+    // Temel Sprite::Update'i çaðýr (animasyon karesi güncellemesi vb. için)
+    return Sprite::Update();
+}
 
-    return action;
+// YENÝ: BU FONKSÝYONU Enemy.cpp DOSYASINA EKLEYÝN
+Sprite* Enemy::AddSprite()
+{
+    // Bu fonksiyon sadece düþman ölürken çaðrýlýr.
+    // Ölüm animasyonu için yeni bir sprite oluþturur ve döndürür.
+
+    // Gerekli global bitmap'in yüklendiðinden emin ol
+    if (!_pDeathEffectBitmap) return NULL;
+
+    // Ölen düþmanýn merkez pozisyonunu al
+    RECT rcPos = GetPosition();
+    POINT ptCenter = { rcPos.left + GetWidth() / 2, rcPos.top + GetHeight() / 2 };
+
+    // Ölüm efekti için yeni bir sprite oluþtur
+    Sprite* pDeathSprite = new Sprite(_pDeathEffectBitmap);
+
+    // Animasyonu ayarla.
+    // NOT: IDB_TIMMY bitmap'inizdeki kare sayýsýný buraya doðru girin!
+    // Örneðin 5 kare varsa:
+    pDeathSprite->SetNumFrames(5, TRUE); // TRUE -> animasyon tek sefer oynasýn ve bitsin
+    pDeathSprite->SetFrameDelay(5);      // Animasyon hýzý (düþük deðer = hýzlý)
+
+    // Efektin pozisyonunu, ölen düþmanýn merkezine gelecek þekilde ayarla
+    int frameWidth = pDeathSprite->GetWidth(); // Bir animasyon karesinin geniþliði
+    int frameHeight = pDeathSprite->GetHeight();
+    pDeathSprite->SetPosition(ptCenter.x - frameWidth / 2, ptCenter.y - frameHeight / 2);
+
+    // Efektin hareket etmediðinden emin ol
+    pDeathSprite->SetVelocity(0, 0);
+
+    // Yeni oluþturulan ölüm efekti sprite'ýný oyun motoruna döndür
+    return pDeathSprite;
 }
 
 void Enemy::UpdateAI()

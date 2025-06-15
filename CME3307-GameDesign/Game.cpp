@@ -48,6 +48,9 @@ MazeGenerator* mazeGenerator;
 Bitmap* _pEnemyBitmap = nullptr;
 Bitmap* _pTurretEnemyBitmap = nullptr;
 Bitmap* _pRobotTurretEnemyBitmap = nullptr; // YENİ
+ // YENİ
+Bitmap* _pDeathEffectBitmap = nullptr;      // YENİ
+
 Bitmap* _pEnemyMissileBitmap = nullptr;
 FOVBackground* fovEffect;
 int TILE_SIZE;
@@ -318,6 +321,7 @@ void GameEnd()
     delete _pEnemyBitmap; _pEnemyBitmap = nullptr;
     delete _pTurretEnemyBitmap; _pTurretEnemyBitmap = nullptr;
     delete _pRobotTurretEnemyBitmap; _pRobotTurretEnemyBitmap = nullptr; // YENİ
+    delete _pDeathEffectBitmap; _pDeathEffectBitmap = nullptr;          // YENİ
     delete _pEnemyMissileBitmap; _pEnemyMissileBitmap = nullptr;
     delete background; background = nullptr;
     delete wallBitmap; wallBitmap = nullptr;
@@ -945,6 +949,9 @@ void LoadBitmaps(HDC hDC)
     _pRobotTurretEnemyBitmap = new Bitmap(hDC, IDB_ROBOT_TURRET_ENEMY, instance);
     if (!_pRobotTurretEnemyBitmap || _pRobotTurretEnemyBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Robot Turret düşman bitmap'i (IDB_ROBOT_TURRET_ENEMY) yüklenemedi!"));
 
+    // YENİ: Ölüm efekti bitmap'ini yükle
+    _pDeathEffectBitmap = new Bitmap(hDC, IDB_TIMMY, instance);
+    if (!_pDeathEffectBitmap || _pDeathEffectBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Ölüm efekti bitmap'i (IDB_TIMMY) yüklenemedi!"));
 
     _pEnemyMissileBitmap = new Bitmap(hDC, IDB_BMISSILE, instance);
     if (!_pEnemyMissileBitmap || _pEnemyMissileBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Düşman mermi bitmap'i (IDB_BMISSILE) yüklenemedi!"));
