@@ -446,27 +446,49 @@ void DrawUI(HDC hDC)
     text = L"Keys: " + std::to_wstring(pPlayer->GetKeys()) + L" / " + std::to_wstring(requiredKeys);
     TextOutW(hDC, xPos, yPos, text.c_str(), static_cast<int>(text.length()));
 
-    // --- YENİ: MERMİ DURUMU GÖSTERGESİ (SOL ALT) ---
-    // Player nesnesinden mevcut silahın istatistiklerini al
+    // --- YENİ: Stamina ve Mermi Durumu (Sol Alt) ---
+    RECT screenRect = { 0, 0, window_X, window_Y };
+
+    // Stamina Barı
+    int staminaBarWidth = 200;
+    int barHeight = 15;
+    int barX = 10;
+    int staminaBarY = screenRect.bottom - 65; // Mermi barının biraz üstü
+
+    float staminaPercent = pPlayer->GetStamina() / pPlayer->GetMaxStamina();
+
+    // Arka plan (boş bar)
+    HBRUSH hRedBrush = CreateSolidBrush(RGB(70, 70, 0)); // Koyu sarı
+    RECT bgRect = { barX, staminaBarY, barX + staminaBarWidth, staminaBarY + barHeight };
+    FillRect(hDC, &bgRect, hRedBrush);
+    DeleteObject(hRedBrush);
+
+    // Ön plan (dolu bar)
+    HBRUSH hYellowBrush = CreateSolidBrush(RGB(255, 255, 0)); // Parlak sarı
+    RECT fgRect = { barX, staminaBarY, barX + (int)(staminaBarWidth * staminaPercent), staminaBarY + barHeight };
+    FillRect(hDC, &fgRect, hYellowBrush);
+    DeleteObject(hYellowBrush);
+
+    // Çerçeve
+    SelectObject(hDC, GetStockObject(NULL_BRUSH));
+    SelectObject(hDC, GetStockObject(WHITE_PEN));
+    Rectangle(hDC, bgRect.left - 1, bgRect.top - 1, bgRect.right + 1, bgRect.bottom + 1);
+
+    // Mermi Durumu
     const WeaponStats& stats = pPlayer->GetCurrentWeaponStats();
     std::wstring ammoText;
-
     if (pPlayer->IsReloading()) {
         ammoText = L"RELOADING...";
-        SetTextColor(hDC, RGB(255, 100, 100)); // Reload sırasında kırmızımsı renk
+        SetTextColor(hDC, RGB(255, 100, 100));
     }
     else {
-        // Yedek mermi sonsuz ise '∞' sembolünü kullan, değilse sayıyı yazdır
         std::wstring totalAmmoStr = (stats.totalAmmo == -1) ? L"∞" : std::to_wstring(stats.totalAmmo);
         ammoText = L"Ammo: " + std::to_wstring(stats.currentAmmoInClip) + L" / " + totalAmmoStr;
-        SetTextColor(hDC, RGB(255, 255, 255)); // Normal durumda beyaz renk
+        SetTextColor(hDC, RGB(255, 255, 255));
     }
 
-    // Metni ekranın sol altına konumlandır
-    RECT screenRect = { 0, 0, window_X, window_Y };
     RECT ammoRect = { 10, screenRect.bottom - 40, 200, screenRect.bottom - 10 };
     DrawTextW(hDC, ammoText.c_str(), -1, &ammoRect, DT_LEFT | DT_SINGLELINE);
-    // --------------------------------------------------
 
     // 3. Oyun Sonu Ekranı
     if (pPlayer->IsDead()) {

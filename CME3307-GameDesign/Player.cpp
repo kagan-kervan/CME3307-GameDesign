@@ -1,5 +1,4 @@
-﻿// Player.cpp
-#include "Player.h"
+﻿#include "Player.h"
 #include "GameEngine.h"
 #include "resource.h"
 #include <windows.h>
@@ -11,48 +10,44 @@
 #undef max
 #undef min
 
-// Dışarıdan gelen global değişkenler
 extern GameEngine* game_engine;
 extern Bitmap* _pPlayerMissileBitmap;
 extern RECT globalBounds;
 extern int TILE_SIZE;
 
-// Kurucu Metot: Oyuncunun tüm başlangıç durumunu ayarlar
 Player::Player(Bitmap* pBitmap, MazeGenerator* pMaze)
     : Sprite(pBitmap, SPRITE_TYPE_PLAYER), m_pMaze(pMaze)
 {
-    // Oyuncunun tüm değerlerini başlangıç durumuna getirmek için Reset'i çağır
     Reset();
 }
 
-// Oyuncunun durumunu sıfırlayan metot (oyun başlangıcı ve yeniden başlatma için)
 void Player::Reset()
 {
     m_fSpeed = 250.0f;
     m_iFireCooldown = 0;
     m_iReloadTimer = 0;
-    m_iHealth = 500; // Canı 100'e sıfırla
+    m_iHealth = 100;
     m_iArmor = 0;
     m_iKeys = 0;
     m_iScore = 0;
-    m_bHasSecondWeapon = false; // Bu değişkeni kullanıyorsanız sıfırlayın
-    m_iSecondaryAmmo = 0;     // Bu değişkeni kullanıyorsanız sıfırlayın
+    m_bHasSecondWeapon = false;
+    m_iSecondaryAmmo = 0;
     m_currentWeapon = WeaponType::PISTOL;
 
-    // --- Silah İstatistiklerini Tanımla ve Sıfırla ---
-    m_weaponStats.clear();
-    // PISTOL: 7 mermi, sonsuz yedek, hızlı ateş, hızlı reload
-    m_weaponStats[WeaponType::PISTOL] = { 7, 7, -1, 15, 30 };
-    // SHOTGUN: 2 mermi, sonsuz yedek, yavaş ateş, yavaş reload
-    m_weaponStats[WeaponType::SHOTGUN] = { 2, 2, -1, 40, 50 };
-    // SMG: 15 mermi, sonsuz yedek, çok hızlı ateş, orta hızda reload
-    m_weaponStats[WeaponType::SMG] = { 15, 15, -1, 5, 40 };
-}
+    m_fMaxStamina = 100.0f;
+    m_fStamina = m_fMaxStamina;
+    m_bIsSprinting = false;
+    m_fStaminaRegenTimer = 0.0f;
 
+    m_weaponStats.clear();
+    m_weaponStats[WeaponType::PISTOL] = { 7, 7, -1, 15, 60 };
+    m_weaponStats[WeaponType::SHOTGUN] = { 2, 2, -1, 40, 100 };
+    m_weaponStats[WeaponType::SMG] = { 15, 15, -1, 5, 80 };
+}
 
 SPRITEACTION Player::Update()
 {
-    float fDeltaTime = 1.0f / 30.0f; // Varsayılan 30 FPS
+    float fDeltaTime = 1.0f / 60.0f;
     if (game_engine && game_engine->GetFrameDelay() > 0) {
         fDeltaTime = static_cast<float>(game_engine->GetFrameDelay()) / 1000.0f;
     }
@@ -61,17 +56,25 @@ SPRITEACTION Player::Update()
         m_iFireCooldown--;
     }
 
-    // Yeniden doldurma sayacını işle
     if (m_iReloadTimer > 0) {
         m_iReloadTimer--;
-        if (m_iReloadTimer == 0) { // Yeniden doldurma tamamlandı
+        if (m_iReloadTimer == 0) {
             WeaponStats& stats = m_weaponStats.at(m_currentWeapon);
-
-            // Sonsuz mermi ise direkt şarjörü doldur
             if (stats.totalAmmo == -1) {
                 stats.currentAmmoInClip = stats.clipSize;
             }
-            // (Gelecekte eklenebilir: Sınırlı mermi varsa, yedekten çekme mantığı)
+        }
+    }
+
+    if (!m_bIsSprinting) {
+        if (m_fStaminaRegenTimer > 0.0f) {
+            m_fStaminaRegenTimer -= fDeltaTime;
+        }
+        else if (m_fStamina < m_fMaxStamina) {
+            m_fStamina += STAMINA_REGEN_RATE * fDeltaTime;
+            if (m_fStamina > m_fMaxStamina) {
+                m_fStamina = m_fMaxStamina;
+            }
         }
     }
 
@@ -90,31 +93,30 @@ void Player::SwitchWeapon(WeaponType newWeapon)
 
     m_currentWeapon = newWeapon;
     m_iFireCooldown = 0;
-    m_iReloadTimer = 0; // Silah değiştirince mevcut reload iptal olur
+    m_iReloadTimer = 0;
 }
 
 void Player::HandleInput(float fDeltaTime)
 {
-    // Reload yapmıyorsa normal girdileri kontrol et
-    if (m_iReloadTimer <= 0)
-    {
-        // Silah Değiştirme
+    if (m_iReloadTimer <= 0) {
         if (GetAsyncKeyState('1') & 0x8000) SwitchWeapon(WeaponType::PISTOL);
         if (GetAsyncKeyState('2') & 0x8000) SwitchWeapon(WeaponType::SHOTGUN);
         if (GetAsyncKeyState('3') & 0x8000) SwitchWeapon(WeaponType::SMG);
 
-        // Manuel Reload
         if (GetAsyncKeyState('R') & 0x8000) {
             StartReload();
-            PlaySound(MAKEINTRESOURCE(IDW_RELOAD), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE);
         }
     }
 
-    // --- Hareket Mantığı (her durumda çalışır) ---
     float currentSpeed = m_fSpeed;
-    if (GetAsyncKeyState(VK_LSHIFT) & 0x8000)
-    {
+    m_bIsSprinting = false;
+
+    if ((GetAsyncKeyState(VK_LSHIFT) & 0x8000) && m_fStamina > 0) {
         currentSpeed *= SPRINT_SPEED_MULTIPLIER;
+        m_bIsSprinting = true;
+        m_fStamina -= STAMINA_DEPLETE_RATE * fDeltaTime;
+        if (m_fStamina < 0) m_fStamina = 0;
+        m_fStaminaRegenTimer = STAMINA_REGEN_DELAY;
     }
 
     float dirX = 0.0f, dirY = 0.0f;
@@ -123,10 +125,12 @@ void Player::HandleInput(float fDeltaTime)
     if (GetAsyncKeyState('A') & 0x8000) dirX = -1.0f;
     if (GetAsyncKeyState('D') & 0x8000) dirX = 1.0f;
 
-    if (dirX != 0.0f || dirY != 0.0f)
-    {
+    if (dirX != 0.0f || dirY != 0.0f) {
         float length = std::sqrt(dirX * dirX + dirY * dirY);
-        if (length > 0) { dirX /= length; dirY /= length; }
+        if (length > 0) {
+            dirX /= length;
+            dirY /= length;
+        }
 
         float moveAmountX = dirX * currentSpeed * fDeltaTime;
         float moveAmountY = dirY * currentSpeed * fDeltaTime;
@@ -134,29 +138,37 @@ void Player::HandleInput(float fDeltaTime)
         float currentPosX_f = static_cast<float>(m_rcPosition.left);
         float currentPosY_f = static_cast<float>(m_rcPosition.top);
 
-        // X ekseni hareketi
         float nextPosX_f = currentPosX_f + moveAmountX;
         RECT nextRectX = { static_cast<int>(nextPosX_f), m_rcPosition.top, static_cast<int>(nextPosX_f + GetWidth()), m_rcPosition.bottom };
         bool collisionX = false;
-        if (m_pMaze && TILE_SIZE > 0 && moveAmountX != 0) {
-            if (m_pMaze->IsWall(nextRectX.left / TILE_SIZE, nextRectX.top / TILE_SIZE) || m_pMaze->IsWall((nextRectX.right - 1) / TILE_SIZE, nextRectX.top / TILE_SIZE) || m_pMaze->IsWall(nextRectX.left / TILE_SIZE, (nextRectX.bottom - 1) / TILE_SIZE) || m_pMaze->IsWall((nextRectX.right - 1) / TILE_SIZE, (nextRectX.bottom - 1) / TILE_SIZE))
+        if (m_pMaze && TILE_SIZE > 0 && moveAmountX != 0.0f) {
+            if (m_pMaze->IsWall(nextRectX.left / TILE_SIZE, nextRectX.top / TILE_SIZE) ||
+                m_pMaze->IsWall((nextRectX.right - 1) / TILE_SIZE, nextRectX.top / TILE_SIZE) ||
+                m_pMaze->IsWall(nextRectX.left / TILE_SIZE, (nextRectX.bottom - 1) / TILE_SIZE) ||
+                m_pMaze->IsWall((nextRectX.right - 1) / TILE_SIZE, (nextRectX.bottom - 1) / TILE_SIZE))
             {
                 collisionX = true;
             }
         }
-        if (!collisionX) { currentPosX_f = nextPosX_f; }
+        if (!collisionX) {
+            currentPosX_f = nextPosX_f;
+        }
 
-        // Y ekseni hareketi
         float nextPosY_f = currentPosY_f + moveAmountY;
         RECT nextRectY = { static_cast<int>(currentPosX_f), static_cast<int>(nextPosY_f), static_cast<int>(currentPosX_f + GetWidth()), static_cast<int>(nextPosY_f + GetHeight()) };
         bool collisionY = false;
-        if (m_pMaze && TILE_SIZE > 0 && moveAmountY != 0) {
-            if (m_pMaze->IsWall(nextRectY.left / TILE_SIZE, nextRectY.top / TILE_SIZE) || m_pMaze->IsWall((nextRectY.right - 1) / TILE_SIZE, nextRectY.top / TILE_SIZE) || m_pMaze->IsWall(nextRectY.left / TILE_SIZE, (nextRectY.bottom - 1) / TILE_SIZE) || m_pMaze->IsWall((nextRectY.right - 1) / TILE_SIZE, (nextRectY.bottom - 1) / TILE_SIZE))
+        if (m_pMaze && TILE_SIZE > 0 && moveAmountY != 0.0f) {
+            if (m_pMaze->IsWall(nextRectY.left / TILE_SIZE, nextRectY.top / TILE_SIZE) ||
+                m_pMaze->IsWall((nextRectY.right - 1) / TILE_SIZE, nextRectY.top / TILE_SIZE) ||
+                m_pMaze->IsWall(nextRectY.left / TILE_SIZE, (nextRectY.bottom - 1) / TILE_SIZE) ||
+                m_pMaze->IsWall((nextRectY.right - 1) / TILE_SIZE, (nextRectY.bottom - 1) / TILE_SIZE))
             {
                 collisionY = true;
             }
         }
-        if (!collisionY) { currentPosY_f = nextPosY_f; }
+        if (!collisionY) {
+            currentPosY_f = nextPosY_f;
+        }
 
         SetPosition(static_cast<int>(currentPosX_f), static_cast<int>(currentPosY_f));
     }
@@ -180,7 +192,6 @@ void Player::Fire(int targetX, int targetY)
 
     if (stats.currentAmmoInClip <= 0) {
         StartReload();
-        PlaySound(MAKEINTRESOURCE(IDW_RELOAD), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE);
         return;
     }
 
@@ -232,7 +243,6 @@ void Player::Fire(int targetX, int targetY)
         break;
     }
     }
-    PlaySound(MAKEINTRESOURCE(IDW_SHOOT), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE);
 }
 
 void Player::TakeDamage(int amount)
@@ -245,11 +255,9 @@ void Player::TakeDamage(int amount)
         damageToHealth -= damageAbsorbedByArmor;
     }
     m_iHealth -= damageToHealth;
-    PlaySound(MAKEINTRESOURCE(IDW_HIT), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE);
     m_iHealth = std::max(0, m_iHealth);
 }
 
-// --- Getter ve Diğer Fonksiyonlar ---
 void Player::AddKey(int amount) { m_iKeys += amount; }
 int  Player::GetKeys() const { return m_iKeys; }
 void Player::ResetKeys() { m_iKeys = 0; }
@@ -277,4 +285,10 @@ WeaponType Player::GetCurrentWeaponType() const {
 }
 bool Player::IsReloading() const {
     return m_iReloadTimer > 0;
+}
+float Player::GetStamina() const {
+    return m_fStamina;
+}
+float Player::GetMaxStamina() const {
+    return m_fMaxStamina;
 }
