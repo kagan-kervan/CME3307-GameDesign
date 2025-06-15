@@ -358,7 +358,7 @@ void GamePaint(HDC hDC)
         }
     }
 
-    if (fovEffect && camera)
+    if (fovEffect && camera && !charSprite->IsDead())
         fovEffect->Draw(hDC, camera->x, camera->y);
 
     DrawUI(hDC);
@@ -907,12 +907,11 @@ void LoadBitmaps(HDC hDC)
         return;
     }
 
-    floorBitmap = new Bitmap(hDC, "tile.bmp");
-    if (!floorBitmap || floorBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("tile.bmp yüklenemedi!"));
+    floorBitmap = new Bitmap(hDC, IDB_TILE, instance);
+    if (!floorBitmap || floorBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("tile.bmp yÃ¼klenemedi!"));
 
-    wallBitmap = new Bitmap(hDC, "wall.bmp");
-    if (!wallBitmap || wallBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("wall.bmp yüklenemedi!"));
-
+    wallBitmap = new Bitmap(hDC, IDB_WALL, instance);
+    if (!wallBitmap || wallBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("wall.bmp yÃ¼klenemedi!"));
 
     charBitmap = new Bitmap(hDC, IDB_BITMAP3, instance);
     if (!charBitmap || charBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Oyuncu bitmap'i (IDB_BITMAP3) yüklenemedi!"));
@@ -935,23 +934,23 @@ void LoadBitmaps(HDC hDC)
     if (!_pPlayerMissileBitmap || _pPlayerMissileBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Oyuncu mermi bitmap'i (IDB_MISSILE) yüklenemedi!"));
 
 
-    healthPWBitmap = new Bitmap(hDC, "Health.bmp");
-    if (!healthPWBitmap || healthPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Health.bmp yüklenemedi!"));
+    healthPWBitmap = new Bitmap(hDC, IDB_HEALTH, instance);
+    if (!healthPWBitmap || healthPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Health.bmp yÃ¼klenemedi!"));
 
-    ammoPWBitmap = new Bitmap(hDC, "Ammo.bmp");
-    if (!ammoPWBitmap || ammoPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Ammo.bmp yüklenemedi!"));
+    ammoPWBitmap = new Bitmap(hDC, IDB_AMMO, instance);
+    if (!ammoPWBitmap || ammoPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Ammo.bmp yÃ¼klenemedi!"));
 
-    pointPWBitmap = new Bitmap(hDC, "Point.bmp");
-    if (!pointPWBitmap || pointPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Point.bmp yüklenemedi!"));
+    pointPWBitmap = new Bitmap(hDC, IDB_POINT, instance);
+    if (!pointPWBitmap || pointPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Point.bmp yÃ¼klenemedi!"));
 
-    armorPWBitmap = new Bitmap(hDC, "Armor.bmp");
-    if (!armorPWBitmap || armorPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Armor.bmp yüklenemedi!"));
+    armorPWBitmap = new Bitmap(hDC, IDB_ARMOR, instance);
+    if (!armorPWBitmap || armorPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Armor.bmp yÃ¼klenemedi!"));
 
-    keyBitmap = new Bitmap(hDC, "Key.bmp");
-    if (!keyBitmap || keyBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Key.bmp yüklenemedi!"));
+    keyBitmap = new Bitmap(hDC, IDB_KEY, instance);
+    if (!keyBitmap || keyBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Key.bmp yÃ¼klenemedi!"));
 
-    endPointBitmap = new Bitmap(hDC, "Gate.bmp");
-    if (!endPointBitmap || endPointBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Gate.bmp yüklenemedi!"));
+    endPointBitmap = new Bitmap(hDC, IDB_GATE, instance);
+    if (!endPointBitmap || endPointBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Gate.bmp yÃ¼klenemedi!"));
 
 }
 
