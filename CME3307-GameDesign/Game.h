@@ -80,5 +80,6 @@ void SaveHighScores();
 void CheckAndSaveScore(int finalScore);
 void RestartGame();
 std::string GetCurrentTimestamp();
+void ChangeEndpointBitmap();
 
 #endif //GAME_H

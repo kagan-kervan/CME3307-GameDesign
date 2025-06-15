@@ -57,6 +57,7 @@ Bitmap* floorBitmap = nullptr;
 Bitmap* keyBitmap = nullptr;
 Bitmap* endPointBitmap = nullptr;
 Bitmap* secondWeaponBitmap = nullptr;
+Bitmap* finishedGateBitmap = nullptr;
 
 bool isLevelFinished = false;
 int currentLevel;
@@ -951,6 +952,8 @@ void LoadBitmaps(HDC hDC)
 
     endPointBitmap = new Bitmap(hDC, IDB_GATE, instance);
     if (!endPointBitmap || endPointBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Gate.bmp yÃ¼klenemedi!"));
+    finishedGateBitmap = new Bitmap(hDC, IDB_FINIHEDGATE, instance);
+    if (!endPointBitmap || endPointBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("finishedGate.bmp yÃ¼klenemedi!"));
 
 }
 
@@ -1063,8 +1066,15 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
         Bitmap* pOtherBitmap = pOtherSpriteForPlayer->GetBitmap();
         SpriteType otherType = pOtherSpriteForPlayer->GetType();
 
-        if (pOtherBitmap == keyBitmap) {PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT); 
-        pPlayer->AddKey(); pOtherSpriteForPlayer->Kill(); return FALSE; }
+        if (pOtherBitmap == keyBitmap) {
+            PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT); 
+        pPlayer->AddKey(); 
+        pOtherSpriteForPlayer->Kill(); 
+        if (charSprite->GetKeys() >= currentLevel) {
+            ChangeEndpointBitmap();
+        }
+        return FALSE; 
+        }
         if (pOtherBitmap == healthPWBitmap) { PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT); 
         pPlayer->AddHealth(20); pOtherSpriteForPlayer->Kill(); return FALSE; }
         if (pOtherBitmap == armorPWBitmap) { PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT); 
@@ -1073,7 +1083,7 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
         pPlayer->AddScore(50); pOtherSpriteForPlayer->Kill(); return FALSE; }
         if (pOtherBitmap == ammoPWBitmap) { PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT); 
         pPlayer->AddSecondaryAmmo(10); pOtherSpriteForPlayer->Kill(); return FALSE; }
-        if (pOtherBitmap == endPointBitmap) {
+        if (pOtherBitmap == finishedGateBitmap || pOtherBitmap == endPointBitmap) {
             int requiredKeys = std::min(4, currentLevel);
             if (pPlayer->GetKeys() >= requiredKeys) {
                 isLevelFinished = true;
@@ -1267,4 +1277,20 @@ void RestartGame()
 
 
     if (game_engine) game_engine->PlayMIDISong(TEXT("tribal-sci-fi.mid"), TRUE);
+}
+
+void ChangeEndpointBitmap() {
+
+    std::vector<Sprite*> sprites =  game_engine->GetSprites();
+    vector<Sprite*>::iterator siSprite;
+    for (siSprite = sprites.begin(); siSprite != sprites.end(); /* siSprite++ */)
+    {
+        Bitmap* spriteBitmap = (*siSprite)->GetBitmap();
+        if (spriteBitmap == endPointBitmap) {
+            (*siSprite)->SetBitmap(finishedGateBitmap);
+            return;
+        }
+        siSprite++;
+    }
+
 }

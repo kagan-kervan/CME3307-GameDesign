@@ -28,6 +28,7 @@
 #define IDB_GATE			  2025
 #define IDB_TURRET_ENEMY      2017
 #define IDB_ROBOT_TURRET_ENEMY  2028
+#define IDB_FINIHEDGATE       2029
 //-----------------------------------------------------------------
 // Wave Sounds                Range : 3000 - 3999
 //-----------------------------------------------------------------

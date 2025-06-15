@@ -33,6 +33,7 @@ IDB_KEY				  BITMAP         "Key.bmp"
 IDB_GATE			  BITMAP		"Gate.bmp"
 IDB_TURRET_ENEMY      BITMAP	   "turret_enemy.bmp"
 IDB_ROBOT_TURRET_ENEMY  BITMAP     "robot_turret.bmp"
+IDB_FINIHEDGATE        BITMAP		"finishedGate.bmp"
 //-----------------------------------------------------------------
 // Wave Sounds
 //-----------------------------------------------------------------
