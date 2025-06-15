@@ -1,32 +1,33 @@
-// Enemy.cpp
-
 #include "Enemy.h"
 #include "Game.h"       // _pEnemyMissileBitmap ve game_engine için
-#include "GameEngine.h" // game_engine için (Game.h zaten bunu içeriyor olabilir ama doðrudan eklemek daha güvenli)
+#include "GameEngine.h" // game_engine için
 #include <cmath>
 #include <vector>
 #include <queue>
 #include <map>
-#include <algorithm>
+#include <algorithm> // std::min, std::max için
 
-// A* Pathfinding (Bu kýsým ayný kalýyor)
+// A* Pathfinding (Bu kýsým ayný kalýyor, ancak sýnýr kontrolleri eklenebilir)
 namespace Pathfinder {
     struct Node { int x, y, gCost, hCost; Node* parent; Node(int _x, int _y) : x(_x), y(_y), gCost(0), hCost(0), parent(nullptr) {} int fCost() const { return gCost + hCost; } };
     struct CompareNode { bool operator()(const Node* a, const Node* b) const { return a->fCost() > b->fCost(); } };
     int calculateHCost(int x1, int y1, int x2, int y2) { return abs(x1 - x2) + abs(y1 - y2); }
     std::vector<POINT> reconstructPath(Node* endNode) { std::vector<POINT> p; Node* c = endNode; while (c != nullptr) { p.push_back({ c->x, c->y }); c = c->parent; } std::reverse(p.begin(), p.end()); return p; }
     std::vector<POINT> FindPath(MazeGenerator* maze, POINT start, POINT end) {
-        if (!maze) return {}; // maze null ise boþ yol döndür
+        if (!maze || maze->GetMaze().empty() || maze->GetMaze()[0].empty()) return {};
+        int mazeWidth = maze->GetMaze()[0].size();
+        int mazeHeight = maze->GetMaze().size();
+
         std::priority_queue<Node*, std::vector<Node*>, CompareNode> o; std::map<std::pair<int, int>, Node*> a;
         Node* s = new Node(start.x, start.y); s->hCost = calculateHCost(start.x, start.y, end.x, end.y); o.push(s); a[{start.x, start.y}] = s;
         int dx[] = { 0, 0, 1, -1 }, dy[] = { 1, -1, 0, 0 };
         while (!o.empty()) {
             Node* c = o.top(); o.pop();
-            if (c->x == end.x && c->y == end.y) { std::vector<POINT> p = reconstructPath(c); for (auto i = a.begin(); i != a.end(); ++i) delete i->second; a.clear(); return p; }
+            if (c->x == end.x && c->y == end.y) { std::vector<POINT> p = reconstructPath(c); for (auto const& pair : a) { auto key = pair.first; auto val = pair.second; delete val; } a.clear(); return p; }
             for (int i = 0; i < 4; ++i) {
                 int nX = c->x + dx[i], nY = c->y + dy[i];
-                // IsWall çaðrýsýndan önce maze null kontrolü zaten FindPath baþýnda yapýldý.
-                if (maze->IsWall(nX, nY)) continue;
+                // Sýnýr ve duvar kontrolü
+                if (nX < 0 || nX >= mazeWidth || nY < 0 || nY >= mazeHeight || maze->IsWall(nX, nY)) continue;
                 int nG = c->gCost + 1; auto it = a.find({ nX, nY });
                 if (it == a.end() || nG < it->second->gCost) {
                     Node* nN; if (it == a.end()) { nN = new Node(nX, nY); a[{nX, nY}] = nN; }
@@ -35,7 +36,7 @@ namespace Pathfinder {
                 }
             }
         }
-        for (auto i = a.begin(); i != a.end(); ++i) delete i->second; a.clear(); return {};
+        for (auto const& pair : a) { auto key = pair.first; auto val = pair.second; delete val; } a.clear(); return {};
     }
 }
 
@@ -49,14 +50,129 @@ Enemy::Enemy(Bitmap* pBitmap, RECT& rcBounds, BOUNDSACTION baBoundsAction,
     m_attackCooldown = 0;
     m_pathfindingCooldown = 0;
 
-    Sprite::SetNumFrames(4); // Düþman animasyonu için frame sayýsý (varsa)
-    Sprite::SetFrameDelay(8); // Animasyon hýzý
+    Sprite::SetNumFrames(4);
+    Sprite::SetFrameDelay(8);
 }
+
+// YENÝ YARDIMCI FONKSÝYON: Duvar çarpýþmalarýný çözer ve gerekirse hýzý ayarlar.
+// Bu fonksiyon, Sprite'ýn pozisyonunu doðrudan deðiþtirebilir ve verilen hýzý (referans) güncelleyebilir.
+void Enemy::ResolveWallCollisions(POINT& desiredVelocity)
+{
+    if (!m_pMaze || TILE_SIZE == 0) return;
+
+    RECT currentSpritePos = GetPosition();
+    int spriteWidth = GetWidth();
+    int spriteHeight = GetHeight();
+
+    // 1. X ekseninde hareket ve çarpýþma kontrolü
+    if (desiredVelocity.x != 0) {
+        RECT nextXPos = currentSpritePos;
+        nextXPos.left += desiredVelocity.x;
+        nextXPos.right += desiredVelocity.x;
+
+        // X ekseninde hareket ettiðinde hangi tile'lara deðeceðini kontrol et
+        int testTileYTop = nextXPos.top / TILE_SIZE;
+        int testTileYBottom = (nextXPos.bottom - 1) / TILE_SIZE; // -1 kenar durumlarý için
+        int testTileYMid = (nextXPos.top + spriteHeight / 2) / TILE_SIZE;
+
+        if (desiredVelocity.x > 0) { // Saða hareket
+            int testTileX = (nextXPos.right - 1) / TILE_SIZE;
+            if (m_pMaze->IsWall(testTileX, testTileYTop) ||
+                m_pMaze->IsWall(testTileX, testTileYBottom) ||
+                m_pMaze->IsWall(testTileX, testTileYMid)) {
+                // Duvara çarptý, pozisyonu duvarýn soluna ayarla ve X hýzýný sýfýrla
+                SetPosition((testTileX * TILE_SIZE) - spriteWidth, currentSpritePos.top);
+                desiredVelocity.x = 0;
+            }
+        }
+        else { // Sola hareket
+            int testTileX = nextXPos.left / TILE_SIZE;
+            if (m_pMaze->IsWall(testTileX, testTileYTop) ||
+                m_pMaze->IsWall(testTileX, testTileYBottom) ||
+                m_pMaze->IsWall(testTileX, testTileYMid)) {
+                // Duvara çarptý, pozisyonu duvarýn saðýna ayarla ve X hýzýný sýfýrla
+                SetPosition((testTileX + 1) * TILE_SIZE, currentSpritePos.top);
+                desiredVelocity.x = 0;
+            }
+        }
+    }
+
+    // X ekseni düzeltmesinden sonra mevcut pozisyonu tekrar al
+    currentSpritePos = GetPosition();
+
+    // 2. Y ekseninde hareket ve çarpýþma kontrolü
+    if (desiredVelocity.y != 0) {
+        RECT nextYPos = currentSpritePos; // X düzeltilmiþ pozisyondan baþla
+        nextYPos.top += desiredVelocity.y;
+        nextYPos.bottom += desiredVelocity.y;
+
+        int testTileXLeft = nextYPos.left / TILE_SIZE;
+        int testTileXRight = (nextYPos.right - 1) / TILE_SIZE;
+        int testTileXMid = (nextYPos.left + spriteWidth / 2) / TILE_SIZE;
+
+        if (desiredVelocity.y > 0) { // Aþaðý hareket
+            int testTileY = (nextYPos.bottom - 1) / TILE_SIZE;
+            if (m_pMaze->IsWall(testTileXLeft, testTileY) ||
+                m_pMaze->IsWall(testTileXRight, testTileY) ||
+                m_pMaze->IsWall(testTileXMid, testTileY)) {
+                SetPosition(currentSpritePos.left, (testTileY * TILE_SIZE) - spriteHeight);
+                desiredVelocity.y = 0;
+            }
+        }
+        else { // Yukarý hareket
+            int testTileY = nextYPos.top / TILE_SIZE;
+            if (m_pMaze->IsWall(testTileXLeft, testTileY) ||
+                m_pMaze->IsWall(testTileXRight, testTileY) ||
+                m_pMaze->IsWall(testTileXMid, testTileY)) {
+                SetPosition(currentSpritePos.left, (testTileY + 1) * TILE_SIZE);
+                desiredVelocity.y = 0;
+            }
+        }
+    }
+}
+
 
 SPRITEACTION Enemy::Update()
 {
-    UpdateAI();
-    return Sprite::Update(); // Sprite'ýn temel Update'ini çaðýr (hareket, animasyon, sýnýr kontrolü)
+    UpdateAI(); // Bu, Sprite::m_ptVelocity'yi ayarlar.
+
+    POINT currentVelocity = GetVelocity(); // AI tarafýndan belirlenen istenen hýz.
+
+    // Duvar çarpýþmalarýný çöz. Bu fonksiyon, eðer çarpýþma varsa
+    // Sprite'ýn pozisyonunu düzeltebilir ve currentVelocity'yi (referansla) deðiþtirebilir.
+    ResolveWallCollisions(currentVelocity);
+
+    // Düzeltilmiþ veya orijinal hýz ile Sprite'ýn kendi SetVelocity'sini çaðýr.
+    SetVelocity(currentVelocity.x, currentVelocity.y);
+
+    // Þimdi Sprite'ýn temel Update'ini çaðýr. Bu, ayarlanmýþ hýzý kullanarak
+    // konumu güncelleyecek, animasyonu ilerletecek ve BA_ (BoundsAction) sýnýr kontrollerini yapacak.
+    // ResolveWallCollisions zaten pozisyonu duvara yasladýðý için,
+    // Sprite::Update'ýn BA_STOP davranýþý büyük ihtimalle ekstra bir þey yapmayacak
+    // (veya çok küçük bir düzeltme yapacak).
+    SPRITEACTION action = Sprite::Update();
+
+
+    // Sprite::Update'dan sonra son bir güvenlik kontrolü ve pozisyon düzeltmesi.
+    // Bu, BA_BOUNCE gibi durumlarýn veya ResolveWallCollisions'ýn
+    // mükemmel olmadýðý nadir durumlarýn ele alýnmasýna yardýmcý olabilir.
+    // Genellikle ResolveWallCollisions yeterli olmalý.
+    // Bu kýsým isteðe baðlýdýr ve ince ayar gerektirebilir.
+    // Þimdilik daha basit tutmak için bu adýmý atlayabiliriz, ResolveWallCollisions'ýn
+    // ana iþi yapmasýný bekleyebiliriz. Eðer hala sorunlar varsa bu eklenebilir.
+    /*
+    RECT finalPos = GetPosition();
+    int spriteWidth = GetWidth();
+    int spriteHeight = GetHeight();
+
+    // X ekseni son kontrolü
+    if (m_pMaze->IsRectCollidingWithWall(finalPos, spriteWidth, spriteHeight)) { // Böyle bir fonksiyon yazmak gerekebilir
+        // Pozisyonu bir önceki geçerli pozisyona geri al veya duvara yasla
+        // ... karmaþýklaþabilir ...
+    }
+    */
+
+    return action;
 }
 
 void Enemy::UpdateAI()
@@ -64,25 +180,19 @@ void Enemy::UpdateAI()
     if (m_attackCooldown > 0) m_attackCooldown--;
     if (m_pathfindingCooldown > 0) m_pathfindingCooldown--;
 
-    if (!m_pPlayer || !game_engine) { // game_engine null kontrolü eklendi
+    if (!m_pPlayer || !game_engine) {
         SetVelocity(0, 0);
         return;
     }
-
-    // TILE_SIZE global deðiþkenini kullanýyoruz, null/sýfýr olmamalý.
-    // Bu kontrolü Game.cpp'de TILE_SIZE'ýn atandýðý yerde yapmak daha mantýklý olabilir.
-    // Þimdilik burada bir güvenlik önlemi olarak býrakýyorum.
-    if (TILE_SIZE == 0) {
+    if (TILE_SIZE == 0) { // TILE_SIZE tanýmlý olmalý
         SetVelocity(0, 0);
         return;
     }
-
 
     float playerDistance = sqrt(pow(static_cast<float>(m_pPlayer->GetPosition().left - m_rcPosition.left), 2.0f) +
         pow(static_cast<float>(m_pPlayer->GetPosition().top - m_rcPosition.top), 2.0f));
 
-    // Görüþ mesafesini biraz daha artýralým (örneðin 25 tile)
-    if (playerDistance > TILE_SIZE * 25) { // Önceki 20 tile idi
+    if (playerDistance > TILE_SIZE * 25) { // Görüþ mesafesi
         m_state = AIState::IDLE;
         SetVelocity(0, 0);
         return;
@@ -91,18 +201,17 @@ void Enemy::UpdateAI()
     bool hasLOS = HasLineOfSightToPlayer();
 
     if (hasLOS) {
-        m_path.clear(); // Görüþ hattý varsa önceki yolu temizle
+        m_path.clear();
         m_pathIndex = 0;
         if (m_type == EnemyType::CHASER) {
-            m_state = AIState::CHASING; // Chaser direkt kovalasýn
+            m_state = AIState::CHASING;
         }
-        else { // TURRET tipi
-            m_state = AIState::ATTACKING; // Turret direkt ateþ etsin
+        else { // TURRET
+            m_state = AIState::ATTACKING;
         }
     }
-    else {
-        // Görüþ hattý yoksa her zaman CHASER gibi davranýp yol bulmaya çalýþsýn
-        m_state = AIState::CHASING;
+    else { // Görüþ hattý yoksa
+        m_state = AIState::CHASING; // Her zaman yol bulmaya çalýþ
     }
 
     switch (m_state)
@@ -115,22 +224,16 @@ void Enemy::UpdateAI()
         if (!m_path.empty() && m_pathIndex < m_path.size()) {
             FollowPath();
         }
-        else { // Yol yoksa veya bittiyse
-            // Direkt oyuncuya doðru basit bir yönelim (eðer pathfinding baþarýsýz olursa veya cooldown'daysa)
-            // Bu kýsým aslýnda pathfinding ile daha iyi yönetilir, ama bir fallback olarak kalabilir.
+        else { // Yol yok veya bittiyse
             float dirX = static_cast<float>(m_pPlayer->GetPosition().left - m_rcPosition.left);
             float dirY = static_cast<float>(m_pPlayer->GetPosition().top - m_rcPosition.top);
             float len = sqrt(dirX * dirX + dirY * dirY);
             if (len > 0) { dirX /= len; dirY /= len; }
-
-            // HAREKET HIZI ARTIRIMI (CHASING - DIRECT)
-            // Önceki hýz: * 5 idi, þimdi * 8 yapalým (yaklaþýk %60 artýþ)
-            SetVelocity(static_cast<int>(dirX * 8), static_cast<int>(dirY * 8));
+            SetVelocity(static_cast<int>(dirX * 8), static_cast<int>(dirY * 8)); // Hýz arttýrýldý
 
             if (m_pathfindingCooldown <= 0) {
-                FindPath(); // Yeni yol bulmayý dene
-                m_pathfindingCooldown = 30; // Pathfinding cooldown'unu biraz azaltalým (önceki 45 idi)
-                // Daha sýk yol bulmaya çalýþýr.
+                FindPath();
+                m_pathfindingCooldown = 30; // Cooldown azaltýldý
             }
         }
         break;
@@ -139,10 +242,7 @@ void Enemy::UpdateAI()
         SetVelocity(0, 0); // Saldýrýrken sabit dur
         if (m_attackCooldown <= 0) {
             AttackPlayer();
-            // ATEÞ ETME HIZI ARTIRIMI (COOLDOWN AZALTMA)
-            // Önceki cooldown: 60 idi, þimdi 35 yapalým (yaklaþýk %40 daha hýzlý ateþ)
-            // TURRET tipi için
-            m_attackCooldown = (m_type == EnemyType::TURRET) ? 35 : 50; // Chaser biraz daha yavaþ ateþ edebilir.
+            m_attackCooldown = (m_type == EnemyType::TURRET) ? 35 : 50; // Ateþ hýzý arttýrýldý
         }
         break;
     }
@@ -150,33 +250,39 @@ void Enemy::UpdateAI()
 
 bool Enemy::FindPath()
 {
-    if (!m_pPlayer || !m_pMaze || TILE_SIZE == 0) return false;
+    if (!m_pPlayer || !m_pMaze || TILE_SIZE == 0 || m_pMaze->GetMaze().empty() || m_pMaze->GetMaze()[0].empty()) return false;
 
-    // Hedef tile oyuncunun tam ortasý deðil, en yakýn grid hücresi olmalý
-    POINT startTile = { m_rcPosition.left / TILE_SIZE, m_rcPosition.top / TILE_SIZE };
-    POINT endTile = { m_pPlayer->GetPosition().left / TILE_SIZE, m_pPlayer->GetPosition().top / TILE_SIZE };
+    // Düþmanýn ve oyuncunun merkez tile'larýný kullanmak daha iyi sonuç verebilir
+    POINT startTile = { (m_rcPosition.left + GetWidth() / 2) / TILE_SIZE, (m_rcPosition.top + GetHeight() / 2) / TILE_SIZE };
+    POINT endTile = { (m_pPlayer->GetPosition().left + m_pPlayer->GetWidth() / 2) / TILE_SIZE, (m_pPlayer->GetPosition().top + m_pPlayer->GetHeight() / 2) / TILE_SIZE };
 
-    // Bitiþ noktasý bir duvar ise yol bulmaya çalýþma.
-    // Ancak bazen oyuncu çok hýzlý hareket ederken anlýk olarak duvar içinde görünebilir.
-    // Bu durumda, oyuncunun hemen yanýndaki geçerli bir tile'ý hedeflemek daha iyi olabilir.
-    // Þimdilik basit tutalým:
+    int mazeWidth = m_pMaze->GetMaze()[0].size();
+    int mazeHeight = m_pMaze->GetMaze().size();
+
+    // Baþlangýç ve bitiþ tile'larýnýn sýnýrlar içinde olduðundan emin ol
+    if (startTile.x < 0 || startTile.x >= mazeWidth || startTile.y < 0 || startTile.y >= mazeHeight ||
+        endTile.x < 0 || endTile.x >= mazeWidth || endTile.y < 0 || endTile.y >= mazeHeight) {
+        return false;
+    }
+    // Baþlangýç tile'ý duvar olmamalý
+    if (m_pMaze->IsWall(startTile.x, startTile.y)) return false;
+
+
     if (m_pMaze->IsWall(endTile.x, endTile.y)) {
-        // Hedef duvar ise, etrafýndaki boþ bir tile'ý dene (basit bir deneme)
         int dx[] = { 0, 0, 1, -1, 1, 1, -1, -1 };
         int dy[] = { 1, -1, 0, 0, 1, -1, 1, -1 };
         bool foundAlternative = false;
         for (int i = 0; i < 8; ++i) {
             int altX = endTile.x + dx[i];
             int altY = endTile.y + dy[i];
-            if (!m_pMaze->IsWall(altX, altY)) {
+            if (altX >= 0 && altX < mazeWidth && altY >= 0 && altY < mazeHeight && !m_pMaze->IsWall(altX, altY)) {
                 endTile = { altX, altY };
                 foundAlternative = true;
                 break;
             }
         }
-        if (!foundAlternative) return false; // Alternatif de bulunamazsa çýk
+        if (!foundAlternative) return false;
     }
-
 
     m_path = Pathfinder::FindPath(m_pMaze, startTile, endTile);
     m_pathIndex = 0;
@@ -187,31 +293,27 @@ void Enemy::FollowPath()
 {
     if (m_path.empty() || m_pathIndex >= m_path.size() || TILE_SIZE == 0) {
         SetVelocity(0, 0);
-        m_path.clear(); // Yol bittiyse veya geçersizse temizle
+        m_path.clear();
         return;
     }
 
     POINT targetTile = m_path[m_pathIndex];
-    // Hedef konumu tile'ýn merkezi yap
     float targetX = static_cast<float>(targetTile.x * TILE_SIZE) + (TILE_SIZE / 2.0f);
     float targetY = static_cast<float>(targetTile.y * TILE_SIZE) + (TILE_SIZE / 2.0f);
 
-    // Mevcut konum düþmanýn merkezi
     float currentX = static_cast<float>(m_rcPosition.left + GetWidth() / 2.0f);
     float currentY = static_cast<float>(m_rcPosition.top + GetHeight() / 2.0f);
 
     float distanceToTargetTileCenter = sqrt(pow(targetX - currentX, 2.0f) + pow(targetY - currentY, 2.0f));
 
-    // Hedef tile'a yeterince yaklaþýldýysa bir sonraki tile'a geç
-    if (distanceToTargetTileCenter < TILE_SIZE / 1.5f) { // Biraz daha toleranslý olabilir (önceki TILE_SIZE / 2.0f idi)
+    if (distanceToTargetTileCenter < TILE_SIZE / 1.5f) { // Tolerans arttýrýldý
         m_pathIndex++;
         if (m_pathIndex >= m_path.size()) {
-            m_path.clear(); // Yolun sonuna gelindi
+            m_path.clear();
             SetVelocity(0, 0);
             return;
         }
-        // Bir sonraki hedef tile'ý hemen alalým, böylece yönelim daha erken güncellenir.
-        targetTile = m_path[m_pathIndex];
+        targetTile = m_path[m_pathIndex]; // Yeni hedef tile
         targetX = static_cast<float>(targetTile.x * TILE_SIZE) + (TILE_SIZE / 2.0f);
         targetY = static_cast<float>(targetTile.y * TILE_SIZE) + (TILE_SIZE / 2.0f);
     }
@@ -221,97 +323,86 @@ void Enemy::FollowPath()
     float len = sqrt(dirX * dirX + dirY * dirY);
     if (len > 0) { dirX /= len; dirY /= len; }
 
-    // HAREKET HIZI ARTIRIMI (FOLLOW_PATH)
-    // Önceki hýz: * 7 idi, þimdi * 10 yapalým (yaklaþýk %40 artýþ)
-    SetVelocity(static_cast<int>(dirX * 10), static_cast<int>(dirY * 10));
+    SetVelocity(static_cast<int>(dirX * 10), static_cast<int>(dirY * 10)); // Hýz arttýrýldý
 }
 
 bool Enemy::HasLineOfSightToPlayer()
 {
-    if (!m_pPlayer || !m_pMaze || TILE_SIZE == 0) return false;
+    if (!m_pPlayer || !m_pMaze || TILE_SIZE == 0 || m_pMaze->GetMaze().empty() || m_pMaze->GetMaze()[0].empty()) return false;
 
-    // Bresenham çizgi algoritmasý ile görüþ hattý kontrolü
-    int x0 = m_rcPosition.left / TILE_SIZE;
-    int y0 = m_rcPosition.top / TILE_SIZE;
-    int x1 = m_pPlayer->GetPosition().left / TILE_SIZE;
-    int y1 = m_pPlayer->GetPosition().top / TILE_SIZE;
+    // Düþmanýn ve oyuncunun merkez tile'larýný kullan
+    int x0 = (m_rcPosition.left + GetWidth() / 2) / TILE_SIZE;
+    int y0 = (m_rcPosition.top + GetHeight() / 2) / TILE_SIZE;
+    int x1 = (m_pPlayer->GetPosition().left + m_pPlayer->GetWidth() / 2) / TILE_SIZE;
+    int y1 = (m_pPlayer->GetPosition().top + m_pPlayer->GetHeight() / 2) / TILE_SIZE;
 
-    // Çok uzaksa direkt false dön (performans için)
-    // Bu mesafe, UpdateAI içindeki genel detect mesafesinden küçük olmalý
-    if (abs(x0 - x1) > 15 || abs(y0 - y1) > 15) return false; // Önceki 20 idi
+    int mazeWidth = m_pMaze->GetMaze()[0].size();
+    int mazeHeight = m_pMaze->GetMaze().size();
+
+    // Tile koordinatlarýnýn geçerli olduðundan emin ol
+    if (x0 < 0 || x0 >= mazeWidth || y0 < 0 || y0 >= mazeHeight ||
+        x1 < 0 || x1 >= mazeWidth || y1 < 0 || y1 >= mazeHeight) {
+        return false; // Birisi sýnýr dýþýndaysa LOS yok
+    }
+
+    // Görüþ hattý mesafesini tile bazýnda sýnýrla
+    if (abs(x0 - x1) > 15 || abs(y0 - y1) > 15) return false;
 
     int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-    int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+    int dy_abs = abs(y1 - y0); // dy'nin pozitif olmasý için _abs eklendi
+    int dy = -dy_abs, sy = y0 < y1 ? 1 : -1; // Bresenham için dy negatif olmalý
     int err = dx + dy, e2;
 
+    // Baþlangýç ve hedef tile'lar Bresenham'da duvar olarak deðerlendirilmemeli
+    POINT startTile = { x0, y0 };
+    POINT endTile = { x1, y1 };
+
     while (true) {
-        // Baþlangýç noktasýndaki duvar kontrolünü atla (düþman kendi içindeyse takýlmasýn)
-        if (!(x0 == (m_rcPosition.left / TILE_SIZE) && y0 == (m_rcPosition.top / TILE_SIZE))) {
-            if (m_pMaze->IsWall(x0, y0)) return false; // Arada duvar var
+        // Mevcut tile (x0, y0) baþlangýç veya hedef tile deðilse duvar kontrolü yap
+        if (!(x0 == startTile.x && y0 == startTile.y) && !(x0 == endTile.x && y0 == endTile.y)) {
+            // Sýnýr kontrolü (genelde gereksiz çünkü döngü x1,y1'e ulaþýnca durur ama güvenlik için)
+            if (x0 < 0 || x0 >= mazeWidth || y0 < 0 || y0 >= mazeHeight) return false;
+            if (m_pMaze->IsWall(x0, y0)) return false;
         }
-        if (x0 == x1 && y0 == y1) break; // Hedefe ulaþýldý
+        if (x0 == x1 && y0 == y1) break;
         e2 = 2 * err;
         if (e2 >= dy) { err += dy; x0 += sx; }
         if (e2 <= dx) { err += dx; y0 += sy; }
     }
-    return true; // Engel yok, görüþ hattý var
+    return true;
 }
 
 void Enemy::AttackPlayer()
 {
-    // _pEnemyMissileBitmap ve game_engine global deðiþkenlerine Game.h üzerinden eriþiliyor.
-    // Bu deðiþkenlerin null olup olmadýðýný kontrol etmek iyi bir pratiktir.
     if (!m_pPlayer || !game_engine || !_pEnemyMissileBitmap || TILE_SIZE == 0) return;
 
-    // Oyuncunun ve düþmanýn merkez noktalarýný hesapla
     float playerCenterX = static_cast<float>(m_pPlayer->GetPosition().left + m_pPlayer->GetWidth() / 2.0f);
     float playerCenterY = static_cast<float>(m_pPlayer->GetPosition().top + m_pPlayer->GetHeight() / 2.0f);
     float enemyCenterX = static_cast<float>(m_rcPosition.left + GetWidth() / 2.0f);
     float enemyCenterY = static_cast<float>(m_rcPosition.top + GetHeight() / 2.0f);
 
-    // Ateþ yönünü hesapla
     float dirX = playerCenterX - enemyCenterX;
     float dirY = playerCenterY - enemyCenterY;
     float length = sqrt(dirX * dirX + dirY * dirY);
     if (length > 0) { dirX /= length; dirY /= length; }
-    else { return; } // Hedef tam üstündeyse ateþ etme (bölme sýfýr hatasý önlemi)
+    else { return; }
 
-    // Mermi için sýnýrlar (labirentin tamamý)
-    // globalBounds Game.cpp'den geliyor, burada doðrudan eriþimi yok.
-    // Merminin hareket edeceði genel alaný tanýmlayan bir RECT gerekli.
-    // Þimdilik MazeGenerator'dan labirent boyutlarýný alalým.
-    // Bu, merminin Sprite kurucusuna verilecek rcBounds.
     RECT rcMissileBounds;
-    if (m_pMaze) {
+    if (m_pMaze && !m_pMaze->GetMaze().empty() && !m_pMaze->GetMaze()[0].empty()) {
         const auto& mazeData = m_pMaze->GetMaze();
-        if (!mazeData.empty() && !mazeData[0].empty()) {
-            rcMissileBounds = { 0, 0,
-                                static_cast<long>(mazeData[0].size() * TILE_SIZE),
-                                static_cast<long>(mazeData.size() * TILE_SIZE) };
-        }
-        else { // Labirent verisi yoksa varsayýlan büyük bir alan
-            rcMissileBounds = { 0, 0, 4000, 4000 };
-        }
+        rcMissileBounds = { 0, 0,
+                            static_cast<long>(mazeData[0].size() * TILE_SIZE),
+                            static_cast<long>(mazeData.size() * TILE_SIZE) };
     }
-    else { // m_pMaze null ise
-        rcMissileBounds = { 0, 0, 4000, 4000 };
+    else {
+        rcMissileBounds = { 0, 0, 4000, 4000 }; // Varsayýlan
     }
 
-
-    // Mermi oluþtur
-    // Yeni Missile sýnýfýný kullanýyorsak:
-    // Missile* pMissile = new Missile(_pEnemyMissileBitmap, rcMissileBounds,
-    //                                {(int)enemyCenterX, (int)enemyCenterY},
-    //                                dirX * missileSpeed, dirY * missileSpeed);
-
-    // Eðer hala eski Sprite tabanlý mermi kullanýlýyorsa:
     Sprite* pMissile = new Sprite(_pEnemyMissileBitmap, rcMissileBounds, BA_DIE, SPRITE_TYPE_ENEMY_MISSILE);
     pMissile->SetPosition(static_cast<int>(enemyCenterX - pMissile->GetWidth() / 2.0f),
         static_cast<int>(enemyCenterY - pMissile->GetHeight() / 2.0f));
 
-    // MERMÝ HIZI ARTIRIMI
-    // Önceki hýz: 8 idi, þimdi 12 yapalým (yaklaþýk %50 artýþ)
-    int missileSpeed = 12;
+    int missileSpeed = 12; // Mermi hýzý arttýrýldý
     pMissile->SetVelocity(static_cast<int>(dirX * missileSpeed), static_cast<int>(dirY * missileSpeed));
 
     game_engine->AddSprite(pMissile);

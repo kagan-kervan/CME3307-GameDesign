@@ -14,11 +14,10 @@ enum class AIState { IDLE, CHASING, ATTACKING };
 class Enemy : public Sprite
 {
 public:
-    // HAREKET HATASI DÜZELTÝLDÝ: Kurucu metoda harita sýnýrlarý eklendi.
     Enemy(Bitmap* pBitmap, RECT& rcBounds, BOUNDSACTION baBoundsAction,
         MazeGenerator* pMaze, Sprite* pPlayer, EnemyType type);
     EnemyType GetEnemyType() const { return m_type; };
-    virtual SPRITEACTION Update();
+    virtual SPRITEACTION Update(); // Override edeceðiz
 
 private:
     void UpdateAI();
@@ -26,6 +25,9 @@ private:
     void FollowPath();
     bool HasLineOfSightToPlayer();
     void AttackPlayer();
+
+    // YENÝ: Duvar çarpýþmasýný ve hýz ayarlamasýný yönetmek için yardýmcý fonksiyon
+    void ResolveWallCollisions(POINT& desiredVelocity);
 
     MazeGenerator* m_pMaze;
     Sprite* m_pPlayer;
@@ -35,7 +37,5 @@ private:
     std::vector<POINT> m_path;
     int m_pathIndex;
     int m_attackCooldown;
-
-    // PERFORMANS OPTÝMÝZASYONU: Yol bulma iþlemini sýnýrlamak için bir sayaç
     int m_pathfindingCooldown;
 };
