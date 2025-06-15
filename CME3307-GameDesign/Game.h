@@ -37,7 +37,7 @@ extern Player* charSprite;
 extern MazeGenerator* mazeGenerator;
 extern Bitmap* _pEnemyBitmap;
 extern Bitmap* _pTurretEnemyBitmap;
-extern Bitmap* _pRobotTurretEnemyBitmap; // YENï¿½: Robot Turret dï¿½ï¿½manï¿½ iï¿½in bitmap
+extern Bitmap* _pRobotTurretEnemyBitmap; // YENÝ: Robot Turret düþmaný için bitmap
 extern Bitmap* _pEnemyMissileBitmap;
 extern int TILE_SIZE;
 extern FOVBackground* fovEffect;
@@ -56,7 +56,7 @@ extern Bitmap* _pPlayerMissileBitmap;
 
 extern DWORD g_dwLastSpawnTime;
 extern DWORD g_dwLastClosestEnemySpawnTime;
-extern DWORD g_dwLastRobotTurretSpawnTime; // YENï¿½: Robot Turret spawn zamanlayï¿½cï¿½sï¿½
+extern DWORD g_dwLastRobotTurretSpawnTime; // YENÝ: Robot Turret spawn zamanlayýcýsý
 extern bool isLevelFinished;
 
 extern int  currentLevel;
@@ -72,7 +72,7 @@ void OnLevelComplete();
 
 void SpawnEnemyNearPlayer();
 void SpawnEnemyNearClosest();
-void SpawnRobotTurretEnemy(); // YENï¿½: Robot Turret spawn fonksiyonu
+void SpawnRobotTurretEnemy(); // YENÝ: Robot Turret spawn fonksiyonu
 
 void DrawUI(HDC hDC);
 void LoadHighScores();
@@ -80,7 +80,7 @@ void SaveHighScores();
 void CheckAndSaveScore(int finalScore);
 void RestartGame();
 std::string GetCurrentTimestamp();
-// YENï¿½: Yardï¿½mcï¿½ fonksiyonun deklarasyonu (bildirimi)
+// YENÝ: Yardýmcý fonksiyonun deklarasyonu (bildirimi)
 double LerpAngle(double a, double b, float t);
 
 #endif //GAME_H

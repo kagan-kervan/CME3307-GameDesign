@@ -69,7 +69,6 @@ Bitmap* floorBitmap = nullptr;
 Bitmap* keyBitmap = nullptr;
 Bitmap* endPointBitmap = nullptr;
 Bitmap* secondWeaponBitmap = nullptr;
-Bitmap* finishedGateBitmap = nullptr;
 
 bool isLevelFinished = false;
 int currentLevel;
@@ -371,7 +370,7 @@ void GamePaint(HDC hDC)
         }
     }
 
-    if (fovEffect && camera && !charSprite->IsDead())
+    if (fovEffect && camera)
         fovEffect->Draw(hDC, camera->x, camera->y);
 
     DrawUI(hDC);
@@ -926,11 +925,12 @@ void LoadBitmaps(HDC hDC)
         return;
     }
 
-    floorBitmap = new Bitmap(hDC, IDB_TILE, instance);
-    if (!floorBitmap || floorBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("tile.bmp yÃ¼klenemedi!"));
+    floorBitmap = new Bitmap(hDC, "tile.bmp");
+    if (!floorBitmap || floorBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("tile.bmp yüklenemedi!"));
 
-    wallBitmap = new Bitmap(hDC, IDB_WALL, instance);
-    if (!wallBitmap || wallBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("wall.bmp yÃ¼klenemedi!"));
+    wallBitmap = new Bitmap(hDC, "wall.bmp");
+    if (!wallBitmap || wallBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("wall.bmp yüklenemedi!"));
+
 
     charBitmap = new Bitmap(hDC, IDB_BITMAP3, instance);
     if (!charBitmap || charBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Oyuncu bitmap'i (IDB_BITMAP3) yüklenemedi!"));
@@ -953,25 +953,23 @@ void LoadBitmaps(HDC hDC)
     if (!_pPlayerMissileBitmap || _pPlayerMissileBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Oyuncu mermi bitmap'i (IDB_MISSILE) yüklenemedi!"));
 
 
-    healthPWBitmap = new Bitmap(hDC, IDB_HEALTH, instance);
-    if (!healthPWBitmap || healthPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Health.bmp yÃ¼klenemedi!"));
+    healthPWBitmap = new Bitmap(hDC, "Health.bmp");
+    if (!healthPWBitmap || healthPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Health.bmp yüklenemedi!"));
 
-    ammoPWBitmap = new Bitmap(hDC, IDB_AMMO, instance);
-    if (!ammoPWBitmap || ammoPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Ammo.bmp yÃ¼klenemedi!"));
+    ammoPWBitmap = new Bitmap(hDC, "Ammo.bmp");
+    if (!ammoPWBitmap || ammoPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Ammo.bmp yüklenemedi!"));
 
-    pointPWBitmap = new Bitmap(hDC, IDB_POINT, instance);
-    if (!pointPWBitmap || pointPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Point.bmp yÃ¼klenemedi!"));
+    pointPWBitmap = new Bitmap(hDC, "Point.bmp");
+    if (!pointPWBitmap || pointPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Point.bmp yüklenemedi!"));
 
-    armorPWBitmap = new Bitmap(hDC, IDB_ARMOR, instance);
-    if (!armorPWBitmap || armorPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Armor.bmp yÃ¼klenemedi!"));
+    armorPWBitmap = new Bitmap(hDC, "Armor.bmp");
+    if (!armorPWBitmap || armorPWBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Armor.bmp yüklenemedi!"));
 
-    keyBitmap = new Bitmap(hDC, IDB_KEY, instance);
-    if (!keyBitmap || keyBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Key.bmp yÃ¼klenemedi!"));
+    keyBitmap = new Bitmap(hDC, "Key.bmp");
+    if (!keyBitmap || keyBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Key.bmp yüklenemedi!"));
 
-    endPointBitmap = new Bitmap(hDC, IDB_GATE, instance);
-    if (!endPointBitmap || endPointBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Gate.bmp yÃ¼klenemedi!"));
-    finishedGateBitmap = new Bitmap(hDC, IDB_FINIHEDGATE, instance);
-    if (!endPointBitmap || endPointBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("finishedGate.bmp yÃ¼klenemedi!"));
+    endPointBitmap = new Bitmap(hDC, "Gate.bmp");
+    if (!endPointBitmap || endPointBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Gate.bmp yüklenemedi!"));
 
 }
 
@@ -1084,15 +1082,8 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
         Bitmap* pOtherBitmap = pOtherSpriteForPlayer->GetBitmap();
         SpriteType otherType = pOtherSpriteForPlayer->GetType();
 
-        if (pOtherBitmap == keyBitmap) {
-            PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT); 
-        pPlayer->AddKey(); 
-        pOtherSpriteForPlayer->Kill(); 
-        if (charSprite->GetKeys() >= currentLevel) {
-            ChangeEndpointBitmap();
-        }
-        return FALSE; 
-        }
+        if (pOtherBitmap == keyBitmap) {PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT); 
+        pPlayer->AddKey(); pOtherSpriteForPlayer->Kill(); return FALSE; }
         if (pOtherBitmap == healthPWBitmap) { PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT); 
         pPlayer->AddHealth(20); pOtherSpriteForPlayer->Kill(); return FALSE; }
         if (pOtherBitmap == armorPWBitmap) { PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT); 
@@ -1101,7 +1092,7 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
         pPlayer->AddScore(50); pOtherSpriteForPlayer->Kill(); return FALSE; }
         if (pOtherBitmap == ammoPWBitmap) { PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT); 
         pPlayer->AddSecondaryAmmo(10); pOtherSpriteForPlayer->Kill(); return FALSE; }
-        if (pOtherBitmap == finishedGateBitmap || pOtherBitmap == endPointBitmap) {
+        if (pOtherBitmap == endPointBitmap) {
             int requiredKeys = std::min(4, currentLevel);
             if (pPlayer->GetKeys() >= requiredKeys) {
                 isLevelFinished = true;
@@ -1295,20 +1286,4 @@ void RestartGame()
 
 
     if (game_engine) game_engine->PlayMIDISong(TEXT("tribal-sci-fi.mid"), TRUE);
-}
-
-void ChangeEndpointBitmap() {
-
-    std::vector<Sprite*> sprites =  game_engine->GetSprites();
-    vector<Sprite*>::iterator siSprite;
-    for (siSprite = sprites.begin(); siSprite != sprites.end(); /* siSprite++ */)
-    {
-        Bitmap* spriteBitmap = (*siSprite)->GetBitmap();
-        if (spriteBitmap == endPointBitmap) {
-            (*siSprite)->SetBitmap(finishedGateBitmap);
-            return;
-        }
-        siSprite++;
-    }
-
 }
