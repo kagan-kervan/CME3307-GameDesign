@@ -61,7 +61,7 @@ extern DWORD g_dwLastClosestEnemySpawnTime; // YENÝ: En yakýn düþmandan spawn iç
 extern bool isLevelFinished;
 
 extern int  currentLevel;
-
+extern HCURSOR g_hCrosshairCursor;
 extern int window_X, window_Y;
 
 void GenerateLevel(int level);

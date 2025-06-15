@@ -28,7 +28,7 @@ const DWORD ENEMY_SPAWN_INTERVAL = 6000; // 6 saniye
 
 DWORD g_dwLastClosestEnemySpawnTime = 0;
 const DWORD CLOSEST_ENEMY_SPAWN_INTERVAL = 3000; // 3 saniye
-
+HCURSOR g_hCrosshairCursor = NULL; // Nişangah imleci için global değişken (tanım)
 GameEngine* game_engine;
 Player* charSprite;
 MazeGenerator* mazeGenerator;
@@ -145,7 +145,7 @@ void Camera::Update()
 void GameStart(HWND hWindow)
 {
     if (!game_engine) return; // game_engine null ise çık
-
+    g_hCrosshairCursor = LoadCursor(NULL, IDC_CROSS);
     srand(GetTickCount());
     offscreenDC = CreateCompatibleDC(GetDC(hWindow));
     offscreenBitmap = CreateCompatibleBitmap(GetDC(hWindow),

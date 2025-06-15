@@ -7,7 +7,7 @@
 // Include Files
 //-----------------------------------------------------------------
 #include "GameEngine.h"
-
+#include "Game.h" // g_hCrosshairCursor deðiþkenine eriþim için
 //-----------------------------------------------------------------
 // Static Variable Initialization
 //-----------------------------------------------------------------
@@ -177,72 +177,76 @@ BOOL GameEngine::Initialize(int iCmdShow)
 
 LRESULT GameEngine::HandleEvent(HWND hWindow, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-  // Route Windows messages to game engine member functions
-  switch (msg)
-  {
+    // Route Windows messages to game engine member functions
+    switch (msg)
+    {
     case WM_CREATE:
-      // Set the game window and start the game
-      SetWindow(hWindow);
-      GameStart(hWindow);
-      return 0;
+        // Set the game window and start the game
+        SetWindow(hWindow);
+        GameStart(hWindow);
+        return 0;
 
     case WM_ACTIVATE:
-      // Activate/deactivate the game and update the Sleep status
-      if (wParam != WA_INACTIVE)
-      {
-        GameActivate(hWindow);
-        SetSleep(FALSE);
-      }
-      else
-      {
-        GameDeactivate(hWindow);
-        SetSleep(TRUE);
-      }
-      return 0;
+        // Activate/deactivate the game and update the Sleep status
+        if (wParam != WA_INACTIVE)
+        {
+            GameActivate(hWindow);
+            SetSleep(FALSE);
+        }
+        else
+        {
+            GameDeactivate(hWindow);
+            SetSleep(TRUE);
+        }
+        return 0;
 
     case WM_PAINT:
-      HDC         hDC;
-      PAINTSTRUCT ps;
-      hDC = BeginPaint(hWindow, &ps);
+        HDC         hDC;
+        PAINTSTRUCT ps;
+        hDC = BeginPaint(hWindow, &ps);
+        GamePaint(hDC);
+        EndPaint(hWindow, &ps);
+        return 0;
 
-      // Paint the game
-      GamePaint(hDC);
-
-      EndPaint(hWindow, &ps);
-      return 0;
+        // YENÝ: WM_SETCURSOR durumunu ekleyin
+    case WM_SETCURSOR:
+        // Fare imleci pencerenin istemci alanýnýn (oyun alaný) üzerindeyse
+        // ve niþangah imlecimiz baþarýyla yüklendiyse
+        if (LOWORD(lParam) == HTCLIENT && g_hCrosshairCursor != NULL)
+        {
+            SetCursor(g_hCrosshairCursor);
+            return TRUE; // Mesajý iþledik, DefWindowProc'a gitmesin
+        }
+        // Diðer durumlar için (baþlýk çubuðu, kenarlýklar vb.) veya
+        // niþangah yüklenememiþse, varsayýlan iþleme izin ver
+        break; // DefWindowProc'a düþecek
 
     case WM_LBUTTONDOWN:
-      // Handle left mouse button press
-      MouseButtonDown(LOWORD(lParam), HIWORD(lParam), TRUE);
-      return 0;
+        MouseButtonDown(LOWORD(lParam), HIWORD(lParam), TRUE);
+        return 0;
 
     case WM_LBUTTONUP:
-      // Handle left mouse button release
-      MouseButtonUp(LOWORD(lParam), HIWORD(lParam), TRUE);
-      return 0;
+        MouseButtonUp(LOWORD(lParam), HIWORD(lParam), TRUE);
+        return 0;
 
     case WM_RBUTTONDOWN:
-      // Handle right mouse button press
-      MouseButtonDown(LOWORD(lParam), HIWORD(lParam), FALSE);
-      return 0;
+        MouseButtonDown(LOWORD(lParam), HIWORD(lParam), FALSE);
+        return 0;
 
     case WM_RBUTTONUP:
-      // Handle right mouse button release
-      MouseButtonUp(LOWORD(lParam), HIWORD(lParam), FALSE);
-      return 0;
+        MouseButtonUp(LOWORD(lParam), HIWORD(lParam), FALSE);
+        return 0;
 
     case WM_MOUSEMOVE:
-      // Handle mouse movement
-      MouseMove(LOWORD(lParam), HIWORD(lParam));
-      return 0;
+        MouseMove(LOWORD(lParam), HIWORD(lParam));
+        return 0;
 
     case WM_DESTROY:
-      // End the game and exit the application
-      GameEnd();
-      PostQuitMessage(0);
-      return 0;
-  }
-  return DefWindowProc(hWindow, msg, wParam, lParam);
+        GameEnd();
+        PostQuitMessage(0);
+        return 0;
+    }
+    return DefWindowProc(hWindow, msg, wParam, lParam);
 }
 
 void GameEngine::ErrorQuit(LPTSTR szErrorMsg)
