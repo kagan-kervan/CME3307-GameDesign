@@ -42,11 +42,11 @@ void Player::Reset()
     // --- Silah İstatistiklerini Tanımla ve Sıfırla ---
     m_weaponStats.clear();
     // PISTOL: 7 mermi, sonsuz yedek, hızlı ateş, hızlı reload
-    m_weaponStats[WeaponType::PISTOL] = { 7, 7, -1, 15, 60 };
+    m_weaponStats[WeaponType::PISTOL] = { 7, 7, -1, 15, 30 };
     // SHOTGUN: 2 mermi, sonsuz yedek, yavaş ateş, yavaş reload
-    m_weaponStats[WeaponType::SHOTGUN] = { 2, 2, -1, 40, 100 };
+    m_weaponStats[WeaponType::SHOTGUN] = { 2, 2, -1, 40, 50 };
     // SMG: 15 mermi, sonsuz yedek, çok hızlı ateş, orta hızda reload
-    m_weaponStats[WeaponType::SMG] = { 15, 15, -1, 5, 80 };
+    m_weaponStats[WeaponType::SMG] = { 15, 15, -1, 5, 40 };
 }
 
 
