@@ -3,8 +3,18 @@
 #include "FOVBackground.h"
 #include "GameEngine.h"
 #include <cmath>
-#include "Game.h"
+
+#ifndef PI
 #define PI 3.14159265358979323846
+#endif
+
+double LerpAngle(double a, double b, float t)
+{
+    double diff = b - a;
+    if (diff > PI) diff -= 2 * PI;
+    if (diff < -PI) diff += 2 * PI;
+    return a + diff * t;
+}
 
 // YENÝ: Kurucu metot güncellendi
 FOVBackground::FOVBackground(Sprite* pPlayer, int iFOVDegrees, int iFOVDistance, int iPlayerLightRadius)

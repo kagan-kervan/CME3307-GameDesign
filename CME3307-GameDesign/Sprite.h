@@ -55,7 +55,7 @@ protected:
   BOOL          m_bHidden;
   BOOL          m_bDying;
   BOOL          m_bOneCycle;
-  double        m_dRotationAngle; // YENİ: Sprite'ın dönüş açısı (radyan cinsinden)
+
   // Helper Methods
   void          UpdateFrame();
   virtual void  CalcCollisionRect();
@@ -68,9 +68,7 @@ public:
     Sprite(Bitmap* pBitmap, POINT ptPosition, POINT ptVelocity, int iZOrder,
         RECT& rcBounds, BOUNDSACTION baBoundsAction = BA_STOP, SpriteType type = SPRITE_TYPE_GENERIC);
     virtual ~Sprite();
-    // YENİ: Döndürme metotları
-  void   SetRotation(double dAngle) { m_dRotationAngle = dAngle; };
-  double GetRotation() const { return m_dRotationAngle; };
+
   // General Methods
   virtual SPRITEACTION  Update();
   virtual Sprite*       AddSprite();

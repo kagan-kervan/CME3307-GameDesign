@@ -1,32 +1,23 @@
 ﻿#include "Player.h"
 #include "GameEngine.h"
-#include "Game.h"
 #include "resource.h"
 #include <windows.h>
 #include <string>
 #include <algorithm>
 #include <cmath>
 #include <random>
-#include "Camera.h" // YENİ: Camera nesnesine erişim için
+
 #undef max
 #undef min
-
-#define PI 3.14159265358979323846
 
 extern GameEngine* game_engine;
 extern Bitmap* _pPlayerMissileBitmap;
 extern RECT globalBounds;
 extern int TILE_SIZE;
-// YENİ: Game.cpp'deki global değişkenlere erişim için
-
-extern Camera* camera; // Camera.h'ta tanımlı Camera sınıfının global örneği
-// YENİ: FOVBackground.cpp'den kopyalanan yardımcı fonksiyon
-
 
 Player::Player(Bitmap* pBitmap, MazeGenerator* pMaze)
     : Sprite(pBitmap, SPRITE_TYPE_PLAYER), m_pMaze(pMaze)
 {
-    m_ptMouse = { 0, 0 }; // YENİ: Mouse pozisyonunu başlat
     Reset();
 }
 
@@ -49,17 +40,9 @@ void Player::Reset()
     m_fStaminaRegenTimer = 0.0f;
 
     m_weaponStats.clear();
-    // PISTOL: 7 mermi, sonsuz yedek, hızlı ateş, hızlı reload
-    m_weaponStats[WeaponType::PISTOL] = { 7, 7, -1, 15, 10 };
-    m_weaponStats[WeaponType::SHOTGUN] = { 2, 2, -1, 40, 25 };
-    m_weaponStats[WeaponType::SMG] = { 15, 15, -1, 5, 20 };
-}
-
-// YENİ: Player.cpp'ye bu metodu ekleyin
-void Player::UpdateMousePosition(int x, int y)
-{
-    m_ptMouse.x = x;
-    m_ptMouse.y = y;
+    m_weaponStats[WeaponType::PISTOL] = { 7, 7, -1, 15, 60 };
+    m_weaponStats[WeaponType::SHOTGUN] = { 2, 2, -1, 40, 100 };
+    m_weaponStats[WeaponType::SMG] = { 15, 15, -1, 5, 80 };
 }
 
 SPRITEACTION Player::Update()
@@ -93,24 +76,6 @@ SPRITEACTION Player::Update()
                 m_fStamina = m_fMaxStamina;
             }
         }
-    }
-
-    if (camera)
-    {
-        RECT rcPos = GetPosition();
-        int playerCenterX = rcPos.left + GetWidth() / 2;
-        int playerCenterY = rcPos.top + GetHeight() / 2;
-
-        int mouseWorldX = m_ptMouse.x + camera->x;
-        int mouseWorldY = m_ptMouse.y + camera->y;
-
-        // Hedef açıyı hesapla.
-        double targetAngle = atan2(-(double)(mouseWorldY - playerCenterY), (double)mouseWorldX - playerCenterX) + (PI / 2.0) + PI;
-
-        // Mevcut açıyı yumuşak bir geçişle hedef açıya yaklaştır
-        double currentAngle = GetRotation();
-        SetRotation(LerpAngle(currentAngle, targetAngle, 0.25f));
-
     }
 
     HandleInput(fDeltaTime);

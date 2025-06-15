@@ -8,7 +8,7 @@
 //-----------------------------------------------------------------
 #include "Sprite.h"
 #include <stdio.h>
-#include <cmath> // cos ve sin fonksiyonları için
+
 //-----------------------------------------------------------------
 // Sprite Constructor(s)/Destructor
 //-----------------------------------------------------------------
@@ -28,7 +28,6 @@ Sprite::Sprite(Bitmap* pBitmap, SpriteType type)
     m_bHidden = FALSE;
     m_bDying = FALSE;
     m_bOneCycle = FALSE;
-    m_dRotationAngle = 0.0;
 }
 
 Sprite::Sprite(Bitmap* pBitmap, RECT& rcBounds, BOUNDSACTION baBoundsAction, SpriteType type)
@@ -52,7 +51,6 @@ Sprite::Sprite(Bitmap* pBitmap, RECT& rcBounds, BOUNDSACTION baBoundsAction, Spr
     m_bHidden = FALSE;
     m_bDying = FALSE;
     m_bOneCycle = FALSE;
-    m_dRotationAngle = 0.0;
 }
 
 Sprite::Sprite(Bitmap* pBitmap, POINT ptPosition, POINT ptVelocity, int iZOrder,
@@ -78,7 +76,6 @@ Sprite::Sprite(Bitmap* pBitmap, POINT ptPosition, POINT ptVelocity, int iZOrder,
     m_bHidden = FALSE;
     m_bDying = FALSE;
     m_bOneCycle = FALSE;
-    m_dRotationAngle = 0.0;
 }
 
 
@@ -189,99 +186,35 @@ Sprite* Sprite::AddSprite()
   return NULL;
 }
 
-// BU FONKSİYONU TAMAMEN DEĞİŞTİRİN
+void Sprite::Draw(HDC hDC)
+{
+  // Draw the sprite if it isn't hidden
+  if (m_pBitmap != NULL && !m_bHidden)
+  {
+    // Draw the appropriate frame, if necessary
+    if (m_iNumFrames == 1)
+      m_pBitmap->Draw(hDC, m_rcPosition.left, m_rcPosition.top, TRUE);
+    else
+      m_pBitmap->DrawPart(hDC, m_rcPosition.left, m_rcPosition.top,
+        m_iCurFrame * GetWidth(), 0, GetWidth(), GetHeight(), TRUE);
+  }
+}
 void Sprite::Draw(HDC hDC, int cameraX, int cameraY)
 {
-    if (m_pBitmap == NULL || m_bHidden || m_pBitmap->GetWidth() <= 0)
-        return;
-
-    int width = GetWidth();
-    int height = GetHeight();
+    // When drawing the sprite, subtract cameraX and cameraY from the sprite position
     int drawX = m_rcPosition.left - cameraX;
     int drawY = m_rcPosition.top - cameraY;
+    // Draw at (drawX, drawY)
 
-    if (fabs(m_dRotationAngle) < 0.001) // m_dRotationAngle == 0.0 yerine bunu kullanın.
+
+    // Draw the sprite if it isn't hidden
+    if (m_pBitmap != NULL && !m_bHidden)
     {
+        // Draw the appropriate frame, if necessary
         if (m_iNumFrames == 1)
             m_pBitmap->Draw(hDC, drawX, drawY, TRUE);
         else
             m_pBitmap->DrawPart(hDC, drawX, drawY,
-                m_iCurFrame * width, 0, width, height, TRUE);
-        return;
+                m_iCurFrame * GetWidth(), 0, GetWidth(), GetHeight(), TRUE);
     }
-
-
-    // --- YENİ: Standart GDI ile Döndürerek Çizim ---
-
-    // 1. Gerekli Değişkenleri ve Döndürme Matrisini Ayarla
-    double angle = -m_dRotationAngle; // PlgBlt için açıyı ters çevirmek daha sezgisel sonuçlar verebilir. Deneyerek bulun.
-    double cosine = cos(angle);
-    double sine = sin(angle);
-
-    // Şeffaflık için kullanılacak renk
-    COLORREF crTransColor = RGB(255, 0, 255);
-
-    // 2. Köşe Noktalarını Hesapla
-    POINT aptCorners[3];
-    int halfWidth = width / 2;
-    int halfHeight = height / 2;
-
-    // Sol-üst köşe
-    aptCorners[0].x = (long)(drawX + halfWidth + (-halfWidth * cosine) - (-halfHeight * sine));
-    aptCorners[0].y = (long)(drawY + halfHeight + (-halfWidth * sine) + (-halfHeight * cosine));
-
-    // Sağ-üst köşe
-    aptCorners[1].x = (long)(drawX + halfWidth + (halfWidth * cosine) - (-halfHeight * sine));
-    aptCorners[1].y = (long)(drawY + halfHeight + (halfWidth * sine) + (-halfHeight * cosine));
-
-    // Sol-alt köşe
-    aptCorners[2].x = (long)(drawX + halfWidth + (-halfWidth * cosine) - (halfHeight * sine));
-    aptCorners[2].y = (long)(drawY + halfHeight + (-halfWidth * sine) + (halfHeight * cosine));
-
-    // 3. Geçici Bellek DC'si ve Bitmap Oluştur
-    // Döndürülmüş resmin sığacağı kadar bir alan gerekir. Köşegen en uzun mesafedir.
-    int iDiag = (int)sqrt(width * width + height * height) + 1;
-    RECT rcTemp = { 0, 0, iDiag, iDiag };
-
-    HDC hTempDC = CreateCompatibleDC(hDC);
-    HBITMAP hTempBitmap = CreateCompatibleBitmap(hDC, iDiag, iDiag);
-    HBITMAP hOldTempBitmap = (HBITMAP)SelectObject(hTempDC, hTempBitmap);
-
-    // 4. Geçici Bitmap'in Arka Planını Şeffaf Renkle Doldur
-    HBRUSH hTransBrush = CreateSolidBrush(crTransColor);
-    FillRect(hTempDC, &rcTemp, hTransBrush);
-    DeleteObject(hTransBrush);
-
-    // Döndürülmüş resmi geçici DC'nin ortasına çizmek için köşe noktalarını ayarla
-    int iOffsetX = (iDiag - width) / 2;
-    int iOffsetY = (iDiag - height) / 2;
-    for (int i = 0; i < 3; i++) {
-        aptCorners[i].x -= (drawX - iOffsetX);
-        aptCorners[i].y -= (drawY - iOffsetY);
-    }
-
-    // 5. Orijinal Bitmap için Bellek DC'si Oluştur ve PlgBlt ile Döndür
-    HDC hSpriteDC = CreateCompatibleDC(hDC);
-    HBITMAP hOldSpriteBitmap = (HBITMAP)SelectObject(hSpriteDC, m_pBitmap->GetHBITMAP());
-
-    SetStretchBltMode(hTempDC, COLORONCOLOR); // Daha iyi kalite için
-    PlgBlt(hTempDC, aptCorners, hSpriteDC,
-        m_iCurFrame * width, 0, width, height, NULL, 0, 0);
-
-    // 6. Döndürülmüş Geçici Bitmap'i Asıl Ekrana Şeffaf Olarak Çiz
-    TransparentBlt(hDC, drawX - (iDiag - width) / 2, drawY - (iDiag - height) / 2,
-        iDiag, iDiag, hTempDC, 0, 0, iDiag, iDiag, crTransColor);
-
-    // 7. Temizlik! Oluşturulan tüm GDI nesnelerini sil
-    SelectObject(hSpriteDC, hOldSpriteBitmap);
-    DeleteDC(hSpriteDC);
-    SelectObject(hTempDC, hOldTempBitmap);
-    DeleteDC(hTempDC);
-    DeleteObject(hTempBitmap);
-}
-
-// Draw'ın bu versiyonunu da güncelleyelim ki diğeri üzerinden çalışsın
-void Sprite::Draw(HDC hDC)
-{
-    Draw(hDC, 0, 0);
 }

@@ -280,7 +280,7 @@ void Enemy::UpdateAI()
                 m_attackCooldown = 35;
             }
             else if (m_type == EnemyType::ROBOT_TURRET) {
-                m_attackCooldown = 25;
+                m_attackCooldown = 15;
             }
             else { // CHASER
                 m_attackCooldown = 50;

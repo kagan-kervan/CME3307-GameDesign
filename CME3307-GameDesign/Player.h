@@ -25,8 +25,7 @@ public:
     Player(Bitmap* pBitmap, MazeGenerator* pMaze);
     virtual SPRITEACTION Update();
     void Fire(int targetX, int targetY);
-    // YENİ: Mouse pozisyonunu güncellemek için metot
-    void UpdateMousePosition(int x, int y);
+
     const WeaponStats& GetCurrentWeaponStats() const;
     WeaponType GetCurrentWeaponType() const;
     bool IsReloading() const;
@@ -74,7 +73,7 @@ private:
     static constexpr float STAMINA_DEPLETE_RATE = 30.0f;
     static constexpr float STAMINA_REGEN_RATE = 20.0f;
     static constexpr float STAMINA_REGEN_DELAY = 1.5f;
-    POINT m_ptMouse;
+
     float m_fStaminaRegenTimer;
 
 
