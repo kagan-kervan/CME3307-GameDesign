@@ -751,6 +751,7 @@ void GenerateLevel(int level)
             charSprite->SetPosition(startPosCoords.first * tile_width, startPosCoords.second * tile_height);
         }
     }
+    game_engine->PlayMIDISong(TEXT("tribal-sci-fi.mid"));
 }
 
 void AddNonCollidableTile(int x, int y, Bitmap* bitmap)
@@ -814,13 +815,15 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
     if (hitterType == SPRITE_TYPE_PLAYER_MISSILE)
     {
         if (hitteeType == SPRITE_TYPE_WALL) { pSpriteHitter->Kill(); return FALSE; }
-        if (hitteeType == SPRITE_TYPE_ENEMY) { pSpriteHitter->Kill(); pSpriteHittee->Kill(); if (charSprite) static_cast<Player*>(charSprite)->AddScore(10); return FALSE; }
+        if (hitteeType == SPRITE_TYPE_ENEMY) {
+            PlaySound(MAKEINTRESOURCE(IDW_EXPLODE), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE); pSpriteHitter->Kill(); pSpriteHittee->Kill(); if (charSprite) static_cast<Player*>(charSprite)->AddScore(10); return FALSE; }
         if (hitteeType == SPRITE_TYPE_PLAYER) return FALSE;
     }
     else if (hitteeType == SPRITE_TYPE_PLAYER_MISSILE)
     {
         if (hitterType == SPRITE_TYPE_WALL) { pSpriteHittee->Kill(); return FALSE; }
-        if (hitterType == SPRITE_TYPE_ENEMY) { pSpriteHittee->Kill(); pSpriteHitter->Kill(); if (charSprite) static_cast<Player*>(charSprite)->AddScore(10); return FALSE; }
+        if (hitterType == SPRITE_TYPE_ENEMY) {
+            PlaySound(MAKEINTRESOURCE(IDW_EXPLODE), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE); pSpriteHittee->Kill(); pSpriteHitter->Kill(); if (charSprite) static_cast<Player*>(charSprite)->AddScore(10); return FALSE; }
         if (hitterType == SPRITE_TYPE_PLAYER) return FALSE;
     }
 

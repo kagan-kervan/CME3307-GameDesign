@@ -40,3 +40,7 @@
 #define IDW_SMEXPLODE         3004
 #define IDW_LGEXPLODE         3005
 #define IDW_GAMEOVER          3006
+#define IDW_HIT               3008
+#define IDW_SHOOT             3009
+#define IDW_EXPLODE           3010
+#define IDW_RELOAD			  3011

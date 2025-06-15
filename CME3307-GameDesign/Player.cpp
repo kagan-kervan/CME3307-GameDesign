@@ -106,6 +106,7 @@ void Player::HandleInput(float fDeltaTime)
         // Manuel Reload
         if (GetAsyncKeyState('R') & 0x8000) {
             StartReload();
+            PlaySound(MAKEINTRESOURCE(IDW_RELOAD), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE);
         }
     }
 
@@ -179,6 +180,7 @@ void Player::Fire(int targetX, int targetY)
 
     if (stats.currentAmmoInClip <= 0) {
         StartReload();
+        PlaySound(MAKEINTRESOURCE(IDW_RELOAD), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE);
         return;
     }
 
@@ -230,6 +232,7 @@ void Player::Fire(int targetX, int targetY)
         break;
     }
     }
+    PlaySound(MAKEINTRESOURCE(IDW_SHOOT), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE);
 }
 
 void Player::TakeDamage(int amount)
@@ -242,6 +245,7 @@ void Player::TakeDamage(int amount)
         damageToHealth -= damageAbsorbedByArmor;
     }
     m_iHealth -= damageToHealth;
+    PlaySound(MAKEINTRESOURCE(IDW_HIT), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE);
     m_iHealth = std::max(0, m_iHealth);
 }
 
