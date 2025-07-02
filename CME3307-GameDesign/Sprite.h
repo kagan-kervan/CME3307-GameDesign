@@ -32,7 +32,9 @@ enum SpriteType {
     SPRITE_TYPE_PLAYER_MISSILE,
     SPRITE_TYPE_ENEMY,
     SPRITE_TYPE_ENEMY_MISSILE,
-    SPRITE_TYPE_WALL
+    SPRITE_TYPE_WALL,
+    SPRITE_TYPE_SPECIAL_WALL,
+    SPRITE_TYPE_MELTER_MISSILE
 };
 
 //-----------------------------------------------------------------

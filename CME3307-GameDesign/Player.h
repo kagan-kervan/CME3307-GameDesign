@@ -7,8 +7,7 @@
 
 enum class WeaponType {
     PISTOL,
-    SHOTGUN,
-    SMG
+    MELTER
 };
 
 struct WeaponStats {
@@ -47,10 +46,10 @@ public:
     float GetStamina() const;
     float GetMaxStamina() const;
 
-    void GiveSecondWeapon();
-    bool HasSecondWeapon() const;
-    void AddSecondaryAmmo(int amount);
-    int  GetSecondaryAmmo() const;
+    void GiveMelter();
+    bool HasMelter() const;
+    void AddMelterAmmo(int amount);
+    int  GetMelterAmmo() const;
 
     void Reset();
 
@@ -89,5 +88,5 @@ private:
     int m_iArmor;
     int m_iScore;
     int m_iSecondaryAmmo;
-    bool m_bHasSecondWeapon;
+    bool m_bHasMelter; // Eskiden m_bHasSecondWeapon idi
 };

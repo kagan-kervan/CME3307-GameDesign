@@ -32,14 +32,14 @@ Player::Player(Bitmap* pBitmap, MazeGenerator* pMaze)
 
 void Player::Reset()
 {
-    m_fSpeed = 250.0f;
+    m_fSpeed = 750.0f;
     m_iFireCooldown = 0;
     m_iReloadTimer = 0;
-    m_iHealth = 100;
+    m_iHealth = 500;
     m_iArmor = 0;
     m_iKeys = 0;
-    m_iScore = 0;
-    m_bHasSecondWeapon = false;
+    m_iScore = 0; 
+    m_bHasMelter = false; // YENİ
     m_iSecondaryAmmo = 0;
     m_currentWeapon = WeaponType::PISTOL;
 
@@ -50,9 +50,8 @@ void Player::Reset()
 
     m_weaponStats.clear();
     // PISTOL: 7 mermi, sonsuz yedek, hızlı ateş, hızlı reload
-    m_weaponStats[WeaponType::PISTOL] = { 7, 7, -1, 15, 10 };
-    m_weaponStats[WeaponType::SHOTGUN] = { 2, 2, -1, 40, 25 };
-    m_weaponStats[WeaponType::SMG] = { 15, 15, -1, 5, 20 };
+    m_weaponStats[WeaponType::PISTOL] = { 7, 7, 63, 10, 10 };
+    m_weaponStats[WeaponType::MELTER] = { 1, 1, 0, 50, 40 }; // Başlangıçta mermisi yok
 }
 
 // YENİ: Player.cpp'ye bu metodu ekleyin
@@ -77,8 +76,9 @@ SPRITEACTION Player::Update()
         m_iReloadTimer--;
         if (m_iReloadTimer == 0) {
             WeaponStats& stats = m_weaponStats.at(m_currentWeapon);
-            if (stats.totalAmmo == -1) {
+            if (stats.totalAmmo > 0) {
                 stats.currentAmmoInClip = stats.clipSize;
+                stats.totalAmmo -= stats.clipSize;
             }
         }
     }
@@ -126,17 +126,24 @@ void Player::SwitchWeapon(WeaponType newWeapon)
 {
     if (m_currentWeapon == newWeapon) return;
 
+    // YENİ: Silaha sahip değilse geçiş yapmayı engelle
+    if (newWeapon == WeaponType::MELTER && !m_bHasMelter)
+    {
+        return;
+    }
+
     m_currentWeapon = newWeapon;
     m_iFireCooldown = 0;
     m_iReloadTimer = 0;
 }
-
 void Player::HandleInput(float fDeltaTime)
 {
     if (m_iReloadTimer <= 0) {
         if (GetAsyncKeyState('1') & 0x8000) SwitchWeapon(WeaponType::PISTOL);
-        if (GetAsyncKeyState('2') & 0x8000) SwitchWeapon(WeaponType::SHOTGUN);
-        if (GetAsyncKeyState('3') & 0x8000) SwitchWeapon(WeaponType::SMG);
+        // DEĞİŞTİRİLDİ: '2' tuşu artık MELTER silahına geçer (eğer varsa)
+        if (GetAsyncKeyState('2') & 0x8000) SwitchWeapon(WeaponType::MELTER);
+        // '3' tuşu kaldırıldı.
+        // if (GetAsyncKeyState('3') & 0x8000) SwitchWeapon(WeaponType::SMG);
 
         if (GetAsyncKeyState('R') & 0x8000) {
             StartReload();
@@ -212,7 +219,7 @@ void Player::HandleInput(float fDeltaTime)
 void Player::StartReload()
 {
     WeaponStats& stats = m_weaponStats.at(m_currentWeapon);
-    if (m_iReloadTimer > 0 || stats.currentAmmoInClip == stats.clipSize || stats.totalAmmo == 0) {
+    if (m_iReloadTimer > 0 || stats.currentAmmoInClip == stats.clipSize || stats.totalAmmo <= 0) {
         return;
     }
     m_iReloadTimer = stats.reloadTime;
@@ -222,18 +229,25 @@ void Player::StartReload()
 
 void Player::Fire(int targetX, int targetY)
 {
-    if (m_iFireCooldown > 0 || m_iReloadTimer > 0 || !_pPlayerMissileBitmap || !game_engine) return;
+    // Melter mermisi için global bitmap'e ihtiyacımız var (Game.cpp'de tanımlanacak)
+    extern Bitmap* _pMelterMissileBitmap;
+
+    if (m_iFireCooldown > 0 || m_iReloadTimer > 0 || !game_engine) return;
 
     WeaponStats& stats = m_weaponStats.at(m_currentWeapon);
 
     if (stats.currentAmmoInClip <= 0) {
-        StartReload();
+        // Mermi bittiyse ve yedek mermi varsa doldur
+        if (stats.totalAmmo > 0) {
+            StartReload();
+        }
         return;
     }
 
     stats.currentAmmoInClip--;
     m_iFireCooldown = stats.fireCooldown;
 
+    // Mermi sprite'ını oluşturma ve ateşleme (ortak kısım)
     POINT startPos = { m_rcPosition.left + GetWidth() / 2, m_rcPosition.top + GetHeight() / 2 };
     float baseDirX = static_cast<float>(targetX - startPos.x);
     float baseDirY = static_cast<float>(targetY - startPos.y);
@@ -246,41 +260,29 @@ void Player::Fire(int targetX, int targetY)
     switch (m_currentWeapon)
     {
     case WeaponType::PISTOL: {
+        if (!_pPlayerMissileBitmap) return;
         float velocityX = normBaseX * missile_speed_factor;
         float velocityY = normBaseY * missile_speed_factor;
         Missile* pMissile = new Missile(_pPlayerMissileBitmap, globalBounds, startPos, velocityX, velocityY);
+        // YENİ: Mermi tipini ayarlıyoruz
         game_engine->AddSprite(pMissile);
+        PlaySound(MAKEINTRESOURCE(IDW_SHOOT), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT);
         break;
     }
-    case WeaponType::SHOTGUN: {
-        const int pelletCount = 5;
-        const float spreadAngleDeg = 15.0f;
-        for (int i = 0; i < pelletCount; ++i) {
-            float randomAngleOffset = (static_cast<float>(rand()) / RAND_MAX - 0.5f) * spreadAngleDeg;
-            float currentAngleRad = std::atan2(normBaseY, normBaseX) + randomAngleOffset * (3.14159265f / 180.0f);
-            float dirX = std::cos(currentAngleRad);
-            float dirY = std::sin(currentAngleRad);
-            float velocityX = dirX * missile_speed_factor;
-            float velocityY = dirY * missile_speed_factor;
-            Missile* pMissile = new Missile(_pPlayerMissileBitmap, globalBounds, startPos, velocityX, velocityY);
-            game_engine->AddSprite(pMissile);
-        }
-        break;
-    }
-    case WeaponType::SMG: {
-        float randomAngleOffset = (static_cast<float>(rand()) / RAND_MAX - 0.5f) * 5.0f;
-        float currentAngleRad = std::atan2(normBaseY, normBaseX) + randomAngleOffset * (3.14159265f / 180.0f);
-        float dirX = std::cos(currentAngleRad);
-        float dirY = std::sin(currentAngleRad);
-        float velocityX = dirX * missile_speed_factor;
-        float velocityY = dirY * missile_speed_factor;
-        Missile* pMissile = new Missile(_pPlayerMissileBitmap, globalBounds, startPos, velocityX, velocityY);
+    case WeaponType::MELTER: {
+        if (!_pMelterMissileBitmap) return;
+        float velocityX = normBaseX * missile_speed_factor * 0.7f; // Biraz daha yavaş
+        float velocityY = normBaseY * missile_speed_factor * 0.7f;
+        Missile* pMissile = new Missile(_pMelterMissileBitmap, globalBounds, startPos, velocityX, velocityY, SpriteType::SPRITE_TYPE_MELTER_MISSILE);
+        // YENİ: Mermi tipini özel olarak ayarlıyoruz
         game_engine->AddSprite(pMissile);
+        // Farklı bir ses efekti çalınabilir
+        PlaySound(MAKEINTRESOURCE(IDW_SHOOT), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT);
         break;
     }
     }
-    PlaySound(MAKEINTRESOURCE(IDW_SHOOT), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT);
 }
+
 
 void Player::TakeDamage(int amount)
 {
@@ -299,7 +301,7 @@ void Player::AddKey(int amount) { m_iKeys += amount; }
 int  Player::GetKeys() const { return m_iKeys; }
 void Player::ResetKeys() { m_iKeys = 0; }
 
-void Player::AddHealth(int amount) { m_iHealth = std::min(100, m_iHealth + amount); }
+void Player::AddHealth(int amount) { m_iHealth = std::min(500, m_iHealth + amount); }
 int  Player::GetHealth() const { return m_iHealth; }
 
 void Player::AddArmor(int amount) { m_iArmor = std::min(100, m_iArmor + amount); }
@@ -308,11 +310,26 @@ int  Player::GetArmor() const { return m_iArmor; }
 void Player::AddScore(int amount) { m_iScore += amount; }
 int  Player::GetScore() const { return m_iScore; }
 
-void Player::GiveSecondWeapon() { m_bHasSecondWeapon = true; }
-bool Player::HasSecondWeapon() const { return m_bHasSecondWeapon; }
+void Player::GiveMelter() {
+    m_bHasMelter = true;
+}
+bool Player::HasMelter() const {
+    return m_bHasMelter;
+}
 
-void Player::AddSecondaryAmmo(int amount) { if (m_bHasSecondWeapon) m_iSecondaryAmmo += amount; }
-int  Player::GetSecondaryAmmo() const { return m_iSecondaryAmmo; }
+void Player::AddMelterAmmo(int amount) {
+    if (m_bHasMelter) {
+        m_weaponStats.at(WeaponType::MELTER).totalAmmo += amount;
+    }
+    m_weaponStats.at(WeaponType::PISTOL).totalAmmo += 10*amount;
+    
+}
+int Player::GetMelterAmmo() const {
+    if (m_bHasMelter) {
+        return m_weaponStats.at(WeaponType::MELTER).totalAmmo + m_weaponStats.at(WeaponType::MELTER).currentAmmoInClip;
+    }
+    return 0;
+}
 
 const WeaponStats& Player::GetCurrentWeaponStats() const {
     return m_weaponStats.at(m_currentWeapon);

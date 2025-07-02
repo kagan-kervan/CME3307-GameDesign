@@ -8,6 +8,8 @@ public:
     // Constructor artýk hýz için POINT yerine float vektör alacak
     Missile(Bitmap* pBitmap, RECT& rcBounds, POINT ptPosition, float fVelocityX, float fVelocityY);
 
+    Missile(Bitmap* pBitmap, RECT& rcBounds, POINT ptPosition, float fVelocityX, float fVelocityY, SpriteType type);
+
     // Update fonksiyonunu override ederek kendi akýcý hareket mantýðýmýzý ekleyeceðiz
     virtual SPRITEACTION Update();
 
@@ -17,4 +19,5 @@ private:
     float m_fPositionY;
     float m_fVelocityX;
     float m_fVelocityY;
+    
 };

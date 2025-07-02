@@ -9,7 +9,7 @@ class GameEngine;
 extern int TILE_SIZE;
 
 // YENÝ: Robot Turret düþman tipi eklendi
-enum class EnemyType { CHASER, TURRET, ROBOT_TURRET };
+enum class EnemyType { CHASER, TURRET, ROBOT_TURRET, RANDOM_WALKER };
 enum class AIState { IDLE, CHASING, ATTACKING };
 
 class Enemy : public Sprite
@@ -43,6 +43,9 @@ private:
     int m_pathIndex;
     int m_attackCooldown;
     int m_pathfindingCooldown;
+
+    int m_randomMoveTimer;
+    POINT m_randomMoveDirection;
 
     // YENÝ: Düþman caný
     int m_iHealth;

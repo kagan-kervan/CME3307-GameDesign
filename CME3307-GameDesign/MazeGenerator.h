@@ -16,7 +16,9 @@ enum class TileType {
     ARMOR_PACK = 6,
     SECOND_WEAPON = 7,
     WEAPON_AMMO = 8,
-    EXTRA_SCORE = 9
+    EXTRA_SCORE = 9,
+    SPECIAL_WALL = 10,
+    WEAPON_MELTER = 11
 };
 
 // Quadrant (Çeyrek) veya alan tanımlamak için kullanılacak yapı
@@ -39,6 +41,8 @@ private:
     std::pair<int, int> startPosition;
     std::pair<int, int> endPosition;
 
+    std::vector<std::pair<int, int>> m_keyWallPositions;
+
     // Labirentteki hücre tiplerini daha okunaklı hale getirmek için enum
     enum class TileType {
         WALL = -1,
@@ -50,7 +54,9 @@ private:
         ARMOR_PACK = 6,
         SECOND_WEAPON = 7,
         WEAPON_AMMO = 8,
-        EXTRA_SCORE = 9
+        EXTRA_SCORE = 9,
+        SPECIAL_WALL = 10,
+        WEAPON_MELTER = 11
     };
 
     // These can remain private
@@ -84,4 +90,7 @@ public:
     // Oyunun başlangıç ve bitiş noktalarını bilmesi için public erişimli değişkenler
     std::pair<int, int> GetStartPos() const { return startPosition; }
     std::pair<int, int> GetEndPos() const { return endPosition; }
+
+    const std::vector<std::pair<int, int>>& GetKeyWallPositions() const { return m_keyWallPositions; }
+    void RemoveKeyWallPosition(int x, int y);
 };

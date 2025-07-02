@@ -30,6 +30,9 @@
 #define IDB_ROBOT_TURRET_ENEMY  2028
 #define IDB_TIMMY             2008
 #define IDB_FINIHEDGATE       2029
+#define IDB_WEAPON_MELTER	  2030
+#define IDB_MELTER_MISSILE	  2031
+#define IDB_SPECIAL_WALL	  2032
 //-----------------------------------------------------------------
 // Wave Sounds                Range : 3000 - 3999
 //-----------------------------------------------------------------

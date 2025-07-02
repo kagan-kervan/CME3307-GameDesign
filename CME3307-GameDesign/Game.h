@@ -56,6 +56,12 @@ extern Bitmap* endPointBitmap;
 extern Bitmap* secondWeaponBitmap;
 extern Bitmap* _pPlayerMissileBitmap;
 
+// YENÝ GLOBAL BITMAP'LER
+extern Bitmap* _pRandomEnemyBitmap;
+extern Bitmap* _pSpecialWallBitmap;
+extern Bitmap* _pMelterWeaponBitmap; // Yerdeki item için
+extern Bitmap* _pMelterMissileBitmap;
+
 extern DWORD g_dwLastSpawnTime;
 extern DWORD g_dwLastClosestEnemySpawnTime;
 extern DWORD g_dwLastRobotTurretSpawnTime; // YENÝ: Robot Turret spawn zamanlayýcýsý

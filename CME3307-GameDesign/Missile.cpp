@@ -15,6 +15,19 @@ Missile::Missile(Bitmap* pBitmap, RECT& rcBounds, POINT ptPosition, float fVeloc
     m_fVelocityY = fVelocityY;
 }
 
+Missile::Missile(Bitmap* pBitmap, RECT& rcBounds, POINT ptPosition, float fVelocityX, float fVelocityY, SpriteType type)
+    : Sprite(pBitmap, ptPosition, { 0, 0 }, 0, rcBounds, BA_DIE, type)
+{
+    // Sprite'ın kendi hızını sıfırlıyoruz, çünkü kendi hız mantığımızı kullanacağız.
+    SetVelocity(0, 0);
+
+    // Float konum ve hız değişkenlerini başlat
+    m_fPositionX = (float)ptPosition.x;
+    m_fPositionY = (float)ptPosition.y;
+    m_fVelocityX = fVelocityX;
+    m_fVelocityY = fVelocityY;
+}
+
 // Kendi akýcý hareket mantýðýmýzý içeren Update metodu
 SPRITEACTION Missile::Update()
 {

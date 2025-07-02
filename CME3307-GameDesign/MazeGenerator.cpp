@@ -120,7 +120,8 @@ const std::vector<std::vector<int>>& MazeGenerator::GetMaze() const {
 
 bool MazeGenerator::IsWall(int x, int y) const {
     if (!isValid(x, y)) return true; // Treat out-of-bounds as a wall
-    return maze[y][x] == -1; // Correct access: [y][x]
+    int tileValue = maze[y][x];
+    return tileValue == static_cast<int>(TileType::WALL) || tileValue == static_cast<int>(TileType::SPECIAL_WALL);
 }
 
 // CRITICAL FIX: The original code used maze[x][y], which was inconsistent.
@@ -157,6 +158,7 @@ void MazeGenerator::ClearMaze() {
     isRoomCell.assign(mazeHeight, std::vector<bool>(mazeWidth, false));
     startPosition = { -1, -1 };
     endPosition = { -1, -1 };
+    m_keyWallPositions.clear();
 }
 
 /**
@@ -215,38 +217,49 @@ std::pair<int, int> MazeGenerator::FindRandomEmptyCellInArea(const Room& area) {
  * @brief Seviyeye göre anahtarları labirentin çeyreklerine yerleştirir.
  */
 void MazeGenerator::PlaceKeysForLevel(int level) {
+    int numKeys = std::min(level, 4);
+    if (numKeys == 0) return;
+
+    int numSpecialWalls = numKeys * 4;
     int mazeW = width * 2 + 1;
     int mazeH = height * 2 + 1;
-    int halfW = mazeW / 2;
-    int halfH = mazeH / 2;
 
-    // Çeyrekleri tanımla
-    Room bottomLeft(1, halfH, halfW - 1, halfH - 1);
-    Room topRight(halfW, 1, halfW - 1, halfH - 1);
-    Room bottomRight(halfW, halfH, halfW - 1, halfH - 1);
-    Room center(halfW / 2, halfH / 2, halfW, halfH);
+    // 1. Değiştirilebilecek tüm normal duvarları bul (kenarda olmayanlar)
+    std::vector<std::pair<int, int>> replaceableWalls;
+    for (int y = 1; y < mazeH - 1; ++y) {
+        for (int x = 1; x < mazeW - 1; ++x) {
+            if (maze[y][x] == (int)TileType::WALL) {
+                // Sadece etrafında yol olan duvarları seçelim ki kırılabilir olsunlar
+                int pathNeighbors = 0;
+                if (isValid(x, y - 1) && maze[y - 1][x] != (int)TileType::WALL) pathNeighbors++;
+                if (isValid(x, y + 1) && maze[y + 1][x] != (int)TileType::WALL) pathNeighbors++;
+                if (isValid(x - 1, y) && maze[y][x - 1] != (int)TileType::WALL) pathNeighbors++;
+                if (isValid(x + 1, y) && maze[y][x + 1] != (int)TileType::WALL) pathNeighbors++;
 
-    std::pair<int, int> pos;
+                if (pathNeighbors > 0) {
+                    replaceableWalls.push_back({ x, y });
+                }
+            }
+        }
+    }
 
-    // Seviye 1: Sol-Alt
-    if (level >= 1) {
-        pos = FindRandomEmptyCellInArea(bottomLeft);
-        if (pos.first != -1) maze[pos.second][pos.first] = (int)TileType::KEY;
+    // 2. Rastgele pozisyonlar elde etmek için duvar listesini karıştır
+    std::shuffle(replaceableWalls.begin(), replaceableWalls.end(), rng);
+
+    // 3. Özel duvarları yerleştir
+    int wallsToPlace = std::min((int)replaceableWalls.size(), numSpecialWalls);
+    std::vector<std::pair<int, int>> placedSpecialWalls;
+
+    for (int i = 0; i < wallsToPlace; ++i) {
+        std::pair<int, int> pos = replaceableWalls[i];
+        maze[pos.second][pos.first] = (int)TileType::SPECIAL_WALL;
+        placedSpecialWalls.push_back(pos);
     }
-    // Seviye 2: Sağ-Üst
-    if (level >= 2) {
-        pos = FindRandomEmptyCellInArea(topRight);
-        if (pos.first != -1) maze[pos.second][pos.first] = (int)TileType::KEY;
-    }
-    // Seviye 3: Sağ-Alt
-    if (level >= 3) {
-        pos = FindRandomEmptyCellInArea(bottomRight);
-        if (pos.first != -1) maze[pos.second][pos.first] = (int)TileType::KEY;
-    }
-    // Seviye 4: Orta
-    if (level >= 4) {
-        pos = FindRandomEmptyCellInArea(center);
-        if (pos.first != -1) maze[pos.second][pos.first] = (int)TileType::KEY;
+
+    // 4. Yerleştirilen özel duvarlardan bazılarını anahtar konumu olarak belirle
+    int keysToDesignate = std::min(numKeys, (int)placedSpecialWalls.size());
+    for (int i = 0; i < keysToDesignate; ++i) {
+        m_keyWallPositions.push_back(placedSpecialWalls[i]);
     }
 }
 
@@ -265,11 +278,12 @@ void MazeGenerator::PlaceItemsForLevel(int level) {
     allowedAreas.push_back(Room(1, halfH, halfW - 1, halfH - 1));     // Bottom-Left
     allowedAreas.push_back(Room(halfW, halfH, halfW - 1, halfH - 1)); // Bottom-Right
 
+    // DEĞİŞTİRİLDİ: Item listesine yeni silah eklendi
     TileType items[] = {
         TileType::HEALTH_PACK,
         TileType::ARMOR_PACK,
-        TileType::SECOND_WEAPON,
-        TileType::WEAPON_AMMO,
+        TileType::WEAPON_MELTER, // Yeni silah
+        TileType::WEAPON_AMMO,   // Bu artık Melter mermisi verebilir (Game.cpp'de ayarlanacak)
         TileType::EXTRA_SCORE
     };
 
@@ -286,5 +300,18 @@ void MazeGenerator::PlaceItemsForLevel(int level) {
                 maze[pos.second][pos.first] = (int)itemType;
             }
         }
+    }
+}
+
+void MazeGenerator::RemoveKeyWallPosition(int x, int y)
+{
+    // Verilen koordinatla eşleşen öğeyi vektörden kaldır
+    auto it = std::remove_if(m_keyWallPositions.begin(), m_keyWallPositions.end(),
+        [x, y](const std::pair<int, int>& pos) {
+            return pos.first == x && pos.second == y;
+        });
+
+    if (it != m_keyWallPositions.end()) {
+        m_keyWallPositions.erase(it, m_keyWallPositions.end());
     }
 }

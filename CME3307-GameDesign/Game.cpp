@@ -73,6 +73,11 @@ Bitmap* keyBitmap = nullptr;
 Bitmap* endPointBitmap = nullptr;
 Bitmap* secondWeaponBitmap = nullptr;
 Bitmap* finishedGateBitmap = nullptr;
+Bitmap* _pRandomEnemyBitmap = nullptr;
+Bitmap* _pSpecialWallBitmap = nullptr;
+Bitmap* _pMelterWeaponBitmap = nullptr;
+Bitmap* _pMelterMissileBitmap = nullptr;
+
 
 bool isLevelFinished = false;
 int currentLevel;
@@ -116,9 +121,8 @@ BOOL GameInitialize(HINSTANCE hInst)
     if (game_engine == NULL)
         return FALSE;
 
-    game_engine->SetFrameRate(30);
+    game_engine->SetFrameRate(60);
     instance = hInst;
-
     return TRUE;
 }
 
@@ -228,7 +232,7 @@ void GameStart(HWND hWindow)
             // Mevcut 5 düşmanı spawn et
             for (int i = 0; i < 5; i++)
             {
-                EnemyType type = (i < 2) ? EnemyType::TURRET : EnemyType::CHASER; // İlk 2'si turret, kalanı chaser
+                EnemyType type = (i < 2) ? EnemyType::TURRET : EnemyType::RANDOM_WALKER; // İlk 2'si turret, kalanı chaser
                 Bitmap* selectedEnemyBitmap = nullptr;
 
                 if (type == EnemyType::TURRET) {
@@ -627,27 +631,29 @@ void SpawnEnemyNearPlayer()
 
     if (tryCount < maxTries)
     {
-        // DEĞİŞİKLİK: Sadece CHASER ve TURRET spawn edilecek, ROBOT_TURRET kendi fonksiyonuyla spawn olur.
-        EnemyType type = (rand() % 2 == 0) ? EnemyType::TURRET : EnemyType::CHASER;
-        Bitmap* selectedEnemyBitmap = nullptr;
-
-        if (type == EnemyType::TURRET) {
-            selectedEnemyBitmap = _pTurretEnemyBitmap;
+        // YENİ: Rastgele düşman spawn etme şansı
+        int enemyChoice = rand() % 10; // %20 şansla Random Walker
+        if (enemyChoice < 2 && _pRandomEnemyBitmap != nullptr)
+        {
+            Enemy* pEnemy = new Enemy(_pRandomEnemyBitmap, globalBounds, BA_STOP,
+                mazeGenerator, charSprite, EnemyType::RANDOM_WALKER);
+            pEnemy->SetPosition(spawnTileX * TILE_SIZE, spawnTileY * TILE_SIZE);
+            game_engine->AddSprite(pEnemy);
         }
-        else { // CHASER
-            selectedEnemyBitmap = _pEnemyBitmap;
-        }
+        else
+        {
+            // Mevcut Chaser/Turret spawn mantığı
+            EnemyType type = (rand() % 2 == 0) ? EnemyType::TURRET : EnemyType::RANDOM_WALKER;
+            Bitmap* selectedEnemyBitmap = (type == EnemyType::TURRET) ? _pTurretEnemyBitmap : _pEnemyBitmap;
 
-        if (!selectedEnemyBitmap) selectedEnemyBitmap = _pEnemyBitmap;
-        if (!selectedEnemyBitmap) {
-            OutputDebugString(TEXT("SpawnEnemyNearPlayer: Uygun düşman bitmap'i bulunamadı.\n"));
-            return;
-        }
+            if (!selectedEnemyBitmap) selectedEnemyBitmap = _pEnemyBitmap;
+            if (!selectedEnemyBitmap) return;
 
-        Enemy* pEnemy = new Enemy(selectedEnemyBitmap, globalBounds, BA_STOP,
-            mazeGenerator, charSprite, type);
-        pEnemy->SetPosition(spawnTileX * TILE_SIZE, spawnTileY * TILE_SIZE);
-        game_engine->AddSprite(pEnemy);
+            Enemy* pEnemy = new Enemy(selectedEnemyBitmap, globalBounds, BA_STOP,
+                mazeGenerator, charSprite, type);
+            pEnemy->SetPosition(spawnTileX * TILE_SIZE, spawnTileY * TILE_SIZE);
+            game_engine->AddSprite(pEnemy);
+        }
     }
 }
 
@@ -745,7 +751,7 @@ void SpawnEnemyNearClosest()
         if (IsAreaClearForSpawn(enemyTileX, enemyTileY, enemySpriteWidthInTiles, enemySpriteHeightInTiles))
         {
             // DEĞİŞİKLİK: Sadece CHASER ve TURRET spawn edilecek
-            EnemyType type = (rand() % 2 == 0) ? EnemyType::TURRET : EnemyType::CHASER;
+            EnemyType type = (rand() % 2 == 0) ? EnemyType::TURRET : EnemyType::RANDOM_WALKER;
             Bitmap* selectedEnemyBitmap = nullptr;
 
             if (type == EnemyType::TURRET) {
@@ -878,7 +884,16 @@ void GenerateLevel(int level)
                 wall->SetPosition(pos);
                 game_engine->AddSprite(wall);
                 break;
+            } 
+            case TileType::SPECIAL_WALL:
+            {
+                Sprite* wall = new Sprite(_pSpecialWallBitmap, rcBounds, BA_STOP, SPRITE_TYPE_SPECIAL_WALL);
+                wall->SetPosition(pos);
+                game_engine->AddSprite(wall);
+                if (floorBitmap) AddNonCollidableTile(posX, posY, floorBitmap);
+                continue; // Döngüde bir sonraki tile'a geç
             }
+            case TileType::WEAPON_MELTER: itemBitmap = _pMelterWeaponBitmap; break;
             case TileType::KEY: itemBitmap = keyBitmap; break;
             case TileType::HEALTH_PACK: itemBitmap = healthPWBitmap; break;
             case TileType::ARMOR_PACK: itemBitmap = armorPWBitmap; break;
@@ -983,6 +998,18 @@ void LoadBitmaps(HDC hDC)
     finishedGateBitmap = new Bitmap(hDC, IDB_FINIHEDGATE, instance);
     if (!endPointBitmap || endPointBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("finishedGate.bmp yÃ¼klenemedi!"));
 
+    _pRandomEnemyBitmap = new Bitmap(hDC, IDB_ENEMY, instance);
+    if (!_pRandomEnemyBitmap || _pRandomEnemyBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Random düşman bitmap'i (IDB_RANDOM_ENEMY) yüklenemedi!"));
+
+    _pSpecialWallBitmap = new Bitmap(hDC, IDB_SPECIAL_WALL, instance);
+    if (!_pSpecialWallBitmap || _pSpecialWallBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Özel duvar bitmap'i (IDB_SPECIAL_WALL) yüklenemedi!"));
+
+    _pMelterWeaponBitmap = new Bitmap(hDC, IDB_WEAPON_MELTER, instance);
+    if (!_pMelterWeaponBitmap || _pMelterWeaponBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Melter silah item'ı (IDB_WEAPON_MELTER) yüklenemedi!"));
+
+    _pMelterMissileBitmap = new Bitmap(hDC, IDB_MELTER_MISSILE, instance);
+    if (!_pMelterMissileBitmap || _pMelterMissileBitmap->GetWidth() == 0) if (game_engine) game_engine->ErrorQuit(TEXT("Melter mermi bitmap'i (IDB_MELTER_MISSILE) yüklenemedi!"));
+
 }
 
 BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
@@ -1021,6 +1048,7 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
     if (hitterType == SPRITE_TYPE_PLAYER_MISSILE)
     {
         if (hitteeType == SPRITE_TYPE_WALL) { pSpriteHitter->Kill(); return FALSE; }
+        if (hitteeType == SPRITE_TYPE_SPECIAL_WALL) { pSpriteHittee->Kill(); return FALSE; }
         if (hitteeType == SPRITE_TYPE_ENEMY) {
             Enemy* pEnemy = static_cast<Enemy*>(pSpriteHittee);
             if (pEnemy) {
@@ -1040,6 +1068,7 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
     else if (hitteeType == SPRITE_TYPE_PLAYER_MISSILE)
     {
         if (hitterType == SPRITE_TYPE_WALL) { pSpriteHittee->Kill(); return FALSE; }
+        if (hitterType == SPRITE_TYPE_SPECIAL_WALL) { pSpriteHittee->Kill(); return FALSE; }
         if (hitterType == SPRITE_TYPE_ENEMY) {
             Enemy* pEnemy = static_cast<Enemy*>(pSpriteHitter);
             if (pEnemy) {
@@ -1060,6 +1089,7 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
     if (hitterType == SPRITE_TYPE_ENEMY_MISSILE)
     {
         if (hitteeType == SPRITE_TYPE_WALL) { pSpriteHitter->Kill(); return FALSE; }
+        if (hitteeType == SPRITE_TYPE_SPECIAL_WALL) { pSpriteHittee->Kill(); return FALSE; }
         if (hitteeType == SPRITE_TYPE_PLAYER && pSpriteHittee == charSprite) {
             pSpriteHitter->Kill();
             static_cast<Player*>(pSpriteHittee)->TakeDamage(12);
@@ -1071,6 +1101,7 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
     else if (hitteeType == SPRITE_TYPE_ENEMY_MISSILE)
     {
         if (hitterType == SPRITE_TYPE_WALL) { pSpriteHittee->Kill(); return FALSE; }
+        if (hitterType == SPRITE_TYPE_SPECIAL_WALL) { pSpriteHittee->Kill(); return FALSE; }
         if (hitterType == SPRITE_TYPE_PLAYER && pSpriteHitter == charSprite) {
             pSpriteHittee->Kill();
             static_cast<Player*>(pSpriteHitter)->TakeDamage(12);
@@ -1102,6 +1133,21 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
          }
             return FALSE;
         }
+        //NEW
+        if (pOtherBitmap == _pMelterWeaponBitmap) {
+            PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT);
+            pPlayer->GiveMelter();
+            pPlayer->AddMelterAmmo(5); // Başlangıçta 5 mermi ver
+            pOtherSpriteForPlayer->Kill();
+            return FALSE;
+        }
+        if (pOtherBitmap == ammoPWBitmap) {
+            PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT);
+
+            pPlayer->AddMelterAmmo(2);
+            pOtherSpriteForPlayer->Kill();
+            return FALSE;
+        }
         if (pOtherBitmap == healthPWBitmap) { PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT); 
         pPlayer->AddHealth(20); pOtherSpriteForPlayer->Kill(); return FALSE; }
         if (pOtherBitmap == armorPWBitmap) { PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT); 
@@ -1109,7 +1155,7 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
         if (pOtherBitmap == pointPWBitmap) { PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT); 
         pPlayer->AddScore(50); pOtherSpriteForPlayer->Kill(); return FALSE; }
         if (pOtherBitmap == ammoPWBitmap) { PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT); 
-        pPlayer->AddSecondaryAmmo(10); pOtherSpriteForPlayer->Kill(); return FALSE; }
+        pOtherSpriteForPlayer->Kill(); return FALSE; }
         if (pOtherBitmap == endPointBitmap || pOtherBitmap == finishedGateBitmap) {
             int requiredKeys = std::min(4, currentLevel);
             if (pPlayer->GetKeys() >= requiredKeys) {
@@ -1122,7 +1168,7 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
         if (otherType == SPRITE_TYPE_ENEMY) {
             Enemy* pEnemy = static_cast<Enemy*>(pOtherSpriteForPlayer);
             if (pEnemy) {
-                if (pEnemy->GetEnemyType() == EnemyType::CHASER) {
+                if (pEnemy->GetEnemyType() == EnemyType::CHASER || pEnemy->GetEnemyType() == EnemyType::RANDOM_WALKER) {
                     pPlayer->TakeDamage(1);
                 }
             }
@@ -1130,7 +1176,85 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
         }
 
         if (otherType == SPRITE_TYPE_WALL) return TRUE;
+        if (otherType == SPRITE_TYPE_SPECIAL_WALL) return TRUE;
     }
+
+    // Lambda to handle destroying a special wall and checking for a key
+    auto HandleSpecialWallDestruction = [&](Sprite* pWallSprite) {
+        if (TILE_SIZE <= 0 || !mazeGenerator || !keyBitmap || !game_engine) return;
+
+        RECT rcWallPos = pWallSprite->GetPosition();
+        int tileX = rcWallPos.left / TILE_SIZE;
+        int tileY = rcWallPos.top / TILE_SIZE;
+
+        mazeGenerator->setValue(tileX, tileY, static_cast<int>(TileType::PATH));
+        const auto& keyPositions = mazeGenerator->GetKeyWallPositions();
+        bool isKeyWall = false;
+        for (const auto& keyPos : keyPositions) {
+            if (keyPos.first == tileX && keyPos.second == tileY) {
+                isKeyWall = true;
+                break;
+            }
+        }
+
+        if (isKeyWall) {
+            Sprite* pKeySprite = new Sprite(keyBitmap, globalBounds, BA_STOP, SPRITE_TYPE_GENERIC);
+            pKeySprite->SetPosition(rcWallPos.left, rcWallPos.top);
+            game_engine->AddSprite(pKeySprite);
+            mazeGenerator->RemoveKeyWallPosition(tileX, tileY);
+        }
+    };
+
+    // YENİ: MELTER MERMİSİ ÇARPIŞMALARI
+    if (hitterType == SPRITE_TYPE_MELTER_MISSILE)
+    {
+        if (hitteeType == SPRITE_TYPE_WALL) { 
+            RECT rcWallPos = pSpriteHittee->GetPosition();
+            int tileX = rcWallPos.left / TILE_SIZE;
+            int tileY = rcWallPos.top / TILE_SIZE;
+            mazeGenerator->setValue(tileX, tileY, static_cast<int>(TileType::PATH));
+            pSpriteHittee->Kill();
+            pSpriteHitter->Kill();
+            AddNonCollidableTile(tileX*TILE_SIZE, tileY*TILE_SIZE, floorBitmap);
+            return FALSE; 
+        }
+        if (hitteeType == SPRITE_TYPE_SPECIAL_WALL) {
+            pSpriteHitter->Kill();
+            pSpriteHittee->Kill();
+            HandleSpecialWallDestruction(pSpriteHittee);
+            return FALSE;
+        }
+        if (hitteeType == SPRITE_TYPE_ENEMY) {
+            static_cast<Enemy*>(pSpriteHittee)->TakeDamage(10); // Düşmana çok hasar ver
+            return FALSE;
+        }
+        return FALSE; // Diğer her şeyin içinden geçebilir veya burada yok olabilir
+    }
+    else if (hitteeType == SPRITE_TYPE_MELTER_MISSILE)
+    {
+        if (hitterType == SPRITE_TYPE_WALL) { 
+            RECT rcWallPos = pSpriteHittee->GetPosition();
+            int tileX = rcWallPos.left / TILE_SIZE;
+            int tileY = rcWallPos.top / TILE_SIZE;
+            mazeGenerator->setValue(tileX, tileY, static_cast<int>(TileType::PATH));
+            pSpriteHittee->Kill();
+            pSpriteHitter->Kill();
+            AddNonCollidableTile(tileX* TILE_SIZE, tileY* TILE_SIZE, floorBitmap);
+            return FALSE; 
+        }
+        if (hitterType == SPRITE_TYPE_SPECIAL_WALL) {
+            pSpriteHittee->Kill();
+            pSpriteHitter->Kill();
+            HandleSpecialWallDestruction(pSpriteHitter);
+            return FALSE;
+        }
+        if (hitterType == SPRITE_TYPE_ENEMY) {
+            static_cast<Enemy*>(pSpriteHitter)->TakeDamage(10);
+            return FALSE;
+        }
+        return FALSE;
+    }
+
 
     return FALSE;
 }
@@ -1138,6 +1262,7 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
 void OnLevelComplete()
 {
     currentLevel++;
+    currentLevel = min(currentLevel, 4);
     GenerateLevel(currentLevel);
     g_dwLastSpawnTime = GetTickCount();
     g_dwLastClosestEnemySpawnTime = GetTickCount();
@@ -1265,7 +1390,7 @@ void RestartGame()
         int enemySpriteHeightInTiles = (referenceBitmapForSize->GetHeight() + TILE_SIZE - 1) / TILE_SIZE;
 
         for (int i = 0; i < 5; i++) {
-            EnemyType type = (i < 2) ? EnemyType::TURRET : EnemyType::CHASER;
+            EnemyType type = (i < 2) ? EnemyType::TURRET : EnemyType::RANDOM_WALKER;
             Bitmap* selectedEnemyBitmap = (type == EnemyType::TURRET) ? _pTurretEnemyBitmap : _pEnemyBitmap;
             if (!selectedEnemyBitmap) selectedEnemyBitmap = _pEnemyBitmap;
             if (selectedEnemyBitmap) {

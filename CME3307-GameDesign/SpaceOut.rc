@@ -34,6 +34,9 @@ IDB_GATE			  BITMAP		"Gate.bmp"
 IDB_TURRET_ENEMY      BITMAP	   "turret_enemy.bmp"
 IDB_ROBOT_TURRET_ENEMY  BITMAP     "robot_turret.bmp"
 IDB_FINIHEDGATE        BITMAP		"finishedGate.bmp"
+IDB_WEAPON_MELTER	   BITMAP		"weapon_melter.bmp"
+IDB_MELTER_MISSILE     BITMAP		"melter_missile.bmp"
+IDB_SPECIAL_WALL       BITMAP		"special_wall.bmp"
 
 //-----------------------------------------------------------------
 // Wave Sounds

@@ -49,6 +49,10 @@ Enemy::Enemy(Bitmap* pBitmap, RECT& rcBounds, BOUNDSACTION baBoundsAction,
     m_attackCooldown = 0;
     m_pathfindingCooldown = 0;
 
+    // YENÝ: Rastgele hareket deðiþkenlerini baþlat
+    m_randomMoveTimer = 0;
+    m_randomMoveDirection = { 0, 0 };
+
     switch (m_type)
     {
     case EnemyType::CHASER:
@@ -65,6 +69,12 @@ Enemy::Enemy(Bitmap* pBitmap, RECT& rcBounds, BOUNDSACTION baBoundsAction,
         m_iHealth = 3;
         Sprite::SetNumFrames(8);
         Sprite::SetFrameDelay(6);
+        break;
+        // YENÝ: Random Walker özellikleri
+    case EnemyType::RANDOM_WALKER:
+        m_iHealth = 2;
+        Sprite::SetNumFrames(4); // Varsa kendi animasyonunu kullan
+        Sprite::SetFrameDelay(10);
         break;
     default:
         m_iHealth = 1;
@@ -225,6 +235,7 @@ Sprite* Enemy::AddSprite()
 
 void Enemy::UpdateAI()
 {
+
     if (m_attackCooldown > 0) m_attackCooldown--;
     if (m_pathfindingCooldown > 0) m_pathfindingCooldown--;
 
@@ -235,6 +246,27 @@ void Enemy::UpdateAI()
     if (TILE_SIZE == 0) {
         SetVelocity(0, 0);
         return;
+    }
+
+
+    // YENÝ: Random Walker'ýn özel AI mantýðý
+    if (m_type == EnemyType::RANDOM_WALKER)
+    {
+        m_state = AIState::IDLE; // Diðer durumlarý tetiklemesin
+        if (m_randomMoveTimer <= 0)
+        {
+            // Yeni bir yön ve süre belirle
+            int speed = 4;
+            m_randomMoveDirection.x = (rand() % 3 - 1) * speed; // -4, 0, veya 4 hýzýnda
+            m_randomMoveDirection.y = (rand() % 3 - 1) * speed;
+            m_randomMoveTimer = rand() % 60 + 30; // 1-3 saniye arasý hareket et
+        }
+        else
+        {
+            m_randomMoveTimer--;
+        }
+        SetVelocity(m_randomMoveDirection);
+        return; // Diðer AI mantýðýný çalýþtýrma
     }
 
     float playerDistance = sqrt(pow(static_cast<float>(m_pPlayer->GetPosition().left - m_rcPosition.left), 2.0f) +
@@ -300,7 +332,7 @@ void Enemy::UpdateAI()
 
                 if (m_pathfindingCooldown <= 0) {
                     FindPath();
-                    m_pathfindingCooldown = 30;
+                    m_pathfindingCooldown = 60;
                 }
             }
         }
