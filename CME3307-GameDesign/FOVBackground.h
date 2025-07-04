@@ -17,7 +17,7 @@ protected:
 
 public:
     // YENÝ: Kurucu metoda playerLightRadius eklendi
-    FOVBackground(Sprite* pPlayer, int iFOVDegrees = 90, int iFOVDistance = 200, int iPlayerLightRadius = 50);
+    FOVBackground(Sprite* pPlayer, int iFOVDegrees = 150, int iFOVDistance = 400, int iPlayerLightRadius = 50);
     virtual ~FOVBackground() {}
 
     virtual void Draw(HDC hDC);

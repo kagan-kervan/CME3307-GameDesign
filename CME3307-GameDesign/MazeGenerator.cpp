@@ -18,8 +18,8 @@ void MazeGenerator::generateMaze() {
     int numRooms = (width * height) / 20;
     for (int i = 0; i < numRooms; i++) {
         // ... (room size and position logic remains the same)
-        std::uniform_int_distribution<int> widthDist(2, 5);
-        std::uniform_int_distribution<int> heightDist(2, 5);
+        std::uniform_int_distribution<int> widthDist(3, 3);
+        std::uniform_int_distribution<int> heightDist(3, 3);
         int roomW = widthDist(rng);
         int roomH = heightDist(rng);
         std::uniform_int_distribution<int> xDist(1, width - roomW - 1);
@@ -29,8 +29,9 @@ void MazeGenerator::generateMaze() {
 
         bool overlap = false;
         for (const auto& r : rooms) {
-            if (roomX < r.x + r.w * 2 + 2 && roomX + roomW * 2 > r.x - 2 &&
-                roomY < r.y + r.h * 2 + 2 && roomY + roomH * 2 > r.y - 2) {
+
+            if (roomX < r.x + r.w * 2 + 1 && roomX + roomW * 2 + 1 > r.x &&
+                roomY < r.y + r.h * 2 + 1 && roomY + roomH * 2 + 1 > r.y) {
                 overlap = true;
                 break;
             }
@@ -220,7 +221,7 @@ void MazeGenerator::PlaceKeysForLevel(int level) {
     int numKeys = std::min(level, 4);
     if (numKeys == 0) return;
 
-    int numSpecialWalls = numKeys * 4;
+    int numSpecialWalls = 1;
     int mazeW = width * 2 + 1;
     int mazeH = height * 2 + 1;
 

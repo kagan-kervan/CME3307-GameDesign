@@ -213,24 +213,25 @@ Sprite* Enemy::AddSprite()
     POINT ptCenter = { rcPos.left + GetWidth() / 2, rcPos.top + GetHeight() / 2 };
 
     // Ölüm efekti için yeni bir sprite oluþtur
-    Sprite* pDeathSprite = new Sprite(_pDeathEffectBitmap);
+    //Sprite* pDeathSprite = new Sprite(_pDeathEffectBitmap);
 
-    // Animasyonu ayarla.
-    // NOT: IDB_TIMMY bitmap'inizdeki kare sayýsýný buraya doðru girin!
-    // Örneðin 5 kare varsa:
-    pDeathSprite->SetNumFrames(5, TRUE); // TRUE -> animasyon tek sefer oynasýn ve bitsin
-    pDeathSprite->SetFrameDelay(5);      // Animasyon hýzý (düþük deðer = hýzlý)
+    //// Animasyonu ayarla.
+    //// NOT: IDB_TIMMY bitmap'inizdeki kare sayýsýný buraya doðru girin!
+    //// Örneðin 5 kare varsa:
+    //pDeathSprite->SetNumFrames(5, TRUE); // TRUE -> animasyon tek sefer oynasýn ve bitsin
+    //pDeathSprite->SetFrameDelay(5);      // Animasyon hýzý (düþük deðer = hýzlý)
 
-    // Efektin pozisyonunu, ölen düþmanýn merkezine gelecek þekilde ayarla
-    int frameWidth = pDeathSprite->GetWidth(); // Bir animasyon karesinin geniþliði
-    int frameHeight = pDeathSprite->GetHeight();
-    pDeathSprite->SetPosition(ptCenter.x - frameWidth / 2, ptCenter.y - frameHeight / 2);
+    //// Efektin pozisyonunu, ölen düþmanýn merkezine gelecek þekilde ayarla
+    //int frameWidth = pDeathSprite->GetWidth(); // Bir animasyon karesinin geniþliði
+    //int frameHeight = pDeathSprite->GetHeight();
+    //pDeathSprite->SetPosition(ptCenter.x - frameWidth / 2, ptCenter.y - frameHeight / 2);
 
-    // Efektin hareket etmediðinden emin ol
-    pDeathSprite->SetVelocity(0, 0);
+    //// Efektin hareket etmediðinden emin ol
+    //pDeathSprite->SetVelocity(0, 0);
 
-    // Yeni oluþturulan ölüm efekti sprite'ýný oyun motoruna döndür
-    return pDeathSprite;
+    //// Yeni oluþturulan ölüm efekti sprite'ýný oyun motoruna döndür
+    //return pDeathSprite;
+    return NULL;
 }
 
 void Enemy::UpdateAI()

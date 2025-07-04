@@ -32,14 +32,14 @@ Player::Player(Bitmap* pBitmap, MazeGenerator* pMaze)
 
 void Player::Reset()
 {
-    m_fSpeed = 750.0f;
+    m_fSpeed = 1200.0f;
     m_iFireCooldown = 0;
     m_iReloadTimer = 0;
     m_iHealth = 500;
     m_iArmor = 0;
     m_iKeys = 0;
     m_iScore = 0; 
-    m_bHasMelter = false; // YENİ
+    m_bHasMelter = true; // YENİ
     m_iSecondaryAmmo = 0;
     m_currentWeapon = WeaponType::PISTOL;
 
@@ -50,8 +50,8 @@ void Player::Reset()
 
     m_weaponStats.clear();
     // PISTOL: 7 mermi, sonsuz yedek, hızlı ateş, hızlı reload
-    m_weaponStats[WeaponType::PISTOL] = { 7, 7, 63, 10, 10 };
-    m_weaponStats[WeaponType::MELTER] = { 1, 1, 0, 50, 40 }; // Başlangıçta mermisi yok
+    m_weaponStats[WeaponType::PISTOL] = { 7, 7, 63, 0, 10 };
+    m_weaponStats[WeaponType::MELTER] = { 1, 1000000, 0, 0, 40 }; // Başlangıçta mermisi yok
 }
 
 // YENİ: Player.cpp'ye bu metodu ekleyin

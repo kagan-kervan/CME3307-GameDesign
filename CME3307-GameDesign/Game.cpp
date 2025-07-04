@@ -33,10 +33,10 @@ std::vector<Tile> nonCollidableTiles;
 RECT globalBounds = { 0, 0, 4000, 4000 };
 
 DWORD g_dwLastSpawnTime = 0;
-const DWORD ENEMY_SPAWN_INTERVAL = 10000;
+const DWORD ENEMY_SPAWN_INTERVAL = 20000;
 
 DWORD g_dwLastClosestEnemySpawnTime = 0;
-const DWORD CLOSEST_ENEMY_SPAWN_INTERVAL = 5000;
+const DWORD CLOSEST_ENEMY_SPAWN_INTERVAL = 15000;
 
 DWORD g_dwLastRobotTurretSpawnTime = 0; // YENİ
 const DWORD ROBOT_TURRET_SPAWN_INTERVAL = 20000; // YENİ: 20 saniye
@@ -194,7 +194,7 @@ void GameStart(HWND hWindow)
     if (wallBitmap) TILE_SIZE = wallBitmap->GetHeight(); else TILE_SIZE = 50;
 
     background = new Background(window_X, window_Y, RGB(0, 0, 0));
-    mazeGenerator = new MazeGenerator(15, 15);
+    mazeGenerator = new MazeGenerator(14, 8);
 
     if (charBitmap && mazeGenerator)
         charSprite = new Player(charBitmap, mazeGenerator);
@@ -209,7 +209,7 @@ void GameStart(HWND hWindow)
         camera = new Camera(charSprite, window_X, window_Y);
 
     if (charSprite)
-        fovEffect = new FOVBackground(charSprite, 90, 350, 75);
+        fovEffect = new FOVBackground(charSprite, 120, 350, 100);
 
     // Başlangıç düşmanları
     if (mazeGenerator && (_pEnemyBitmap || _pTurretEnemyBitmap || _pRobotTurretEnemyBitmap) && charSprite && TILE_SIZE > 0)
@@ -253,7 +253,7 @@ void GameStart(HWND hWindow)
 
                 int ex, ey;
                 int tryCount = 0;
-                const int maxSpawnTries = 50;
+                const int maxSpawnTries = 20;
                 do
                 {
                     ex = (rand() % (static_cast<int>(mazeData[0].size()) - enemySpriteWidthInTiles + 1));
@@ -1036,13 +1036,13 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
     if (hitterType == SPRITE_TYPE_PLAYER_MISSILE && hitteeType == SPRITE_TYPE_PLAYER_MISSILE) return FALSE;
     if (hitterType == SPRITE_TYPE_ENEMY_MISSILE && hitteeType == SPRITE_TYPE_ENEMY_MISSILE) return FALSE;
 
-    if ((hitterType == SPRITE_TYPE_PLAYER_MISSILE && hitteeType == SPRITE_TYPE_ENEMY_MISSILE) ||
-        (hitterType == SPRITE_TYPE_ENEMY_MISSILE && hitteeType == SPRITE_TYPE_PLAYER_MISSILE))
-    {
-        pSpriteHitter->Kill();
-        pSpriteHittee->Kill();
-        return FALSE;
-    }
+    //if ((hitterType == SPRITE_TYPE_PLAYER_MISSILE && hitteeType == SPRITE_TYPE_ENEMY_MISSILE) ||
+    //    (hitterType == SPRITE_TYPE_ENEMY_MISSILE && hitteeType == SPRITE_TYPE_PLAYER_MISSILE))
+    //{
+    //    pSpriteHitter->Kill();
+    //    pSpriteHittee->Kill();
+    //    return FALSE;
+    //}
 
     // DEĞİŞİKLİK: Oyuncu mermisi düşmana çarptığında hasar verme ve can kontrolü
     if (hitterType == SPRITE_TYPE_PLAYER_MISSILE)
@@ -1128,9 +1128,9 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
          PlaySound(MAKEINTRESOURCE(IDW_POWERUP), game_engine->GetInstance(), SND_ASYNC | SND_RESOURCE | SND_NODEFAULT);
          pPlayer->AddKey();
          pOtherSpriteForPlayer->Kill();
-        if (charSprite->GetKeys() >= currentLevel) {
-                ChangeEndpointBitmap();
-         }
+            isLevelFinished = true;
+            if (game_engine) game_engine->PlayMIDISong(TEXT(""), FALSE);
+            ChangeEndpointBitmap();
             return FALSE;
         }
         //NEW
@@ -1233,7 +1233,7 @@ BOOL SpriteCollision(Sprite* pSpriteHitter, Sprite* pSpriteHittee)
     else if (hitteeType == SPRITE_TYPE_MELTER_MISSILE)
     {
         if (hitterType == SPRITE_TYPE_WALL) { 
-            RECT rcWallPos = pSpriteHittee->GetPosition();
+            RECT rcWallPos = pSpriteHitter->GetPosition();
             int tileX = rcWallPos.left / TILE_SIZE;
             int tileY = rcWallPos.top / TILE_SIZE;
             mazeGenerator->setValue(tileX, tileY, static_cast<int>(TileType::PATH));
