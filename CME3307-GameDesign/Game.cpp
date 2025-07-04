@@ -1264,6 +1264,100 @@ void OnLevelComplete()
     currentLevel++;
     currentLevel = min(currentLevel, 4);
     GenerateLevel(currentLevel);
+
+    if (mazeGenerator && (_pEnemyBitmap || _pTurretEnemyBitmap || _pRobotTurretEnemyBitmap) && charSprite && TILE_SIZE > 0)
+    {
+        const auto& mazeData = mazeGenerator->GetMaze();
+        if (!mazeData.empty() && !mazeData[0].empty())
+        {
+            // CHASER ve TURRET düşmanları için referans bitmap (boyut için)
+            Bitmap* referenceBitmapForSize = _pEnemyBitmap ? _pEnemyBitmap : _pTurretEnemyBitmap;
+            if (!referenceBitmapForSize && !_pRobotTurretEnemyBitmap) { // RobotTurret de bir referans olabilir
+                if (game_engine) game_engine->ErrorQuit(TEXT("Düşman boyutları için referans bitmap bulunamadı!"));
+                return;
+            }
+            if (!referenceBitmapForSize) referenceBitmapForSize = _pRobotTurretEnemyBitmap;
+
+
+            int enemySpriteWidthInTiles = (referenceBitmapForSize->GetWidth() + TILE_SIZE - 1) / TILE_SIZE;
+            int enemySpriteHeightInTiles = (referenceBitmapForSize->GetHeight() + TILE_SIZE - 1) / TILE_SIZE;
+
+            // Mevcut 5 düşmanı spawn et
+            for (int i = 0; i < 5; i++)
+            {
+                EnemyType type = (i < 2) ? EnemyType::TURRET : EnemyType::RANDOM_WALKER; // İlk 2'si turret, kalanı chaser
+                Bitmap* selectedEnemyBitmap = nullptr;
+
+                if (type == EnemyType::TURRET) {
+                    selectedEnemyBitmap = _pTurretEnemyBitmap;
+                }
+                else {
+                    selectedEnemyBitmap = _pEnemyBitmap;
+                }
+
+                if (!selectedEnemyBitmap) selectedEnemyBitmap = _pEnemyBitmap;
+                if (!selectedEnemyBitmap) {
+                    OutputDebugString(TEXT("Uygun düşman bitmap'i bulunamadı, düşman oluşturulamadı.\n"));
+                    continue;
+                }
+
+                Enemy* pEnemy = new Enemy(selectedEnemyBitmap, globalBounds, BA_STOP,
+                    mazeGenerator, charSprite, type);
+
+                int ex, ey;
+                int tryCount = 0;
+                const int maxSpawnTries = 20;
+                do
+                {
+                    ex = (rand() % (static_cast<int>(mazeData[0].size()) - enemySpriteWidthInTiles + 1));
+                    ey = (rand() % (static_cast<int>(mazeData.size()) - enemySpriteHeightInTiles + 1));
+                    tryCount++;
+                } while (!IsAreaClearForSpawn(ex, ey, enemySpriteWidthInTiles, enemySpriteHeightInTiles) && tryCount < maxSpawnTries);
+
+                if (tryCount < maxSpawnTries)
+                {
+                    pEnemy->SetPosition(ex * TILE_SIZE, ey * TILE_SIZE);
+                    game_engine->AddSprite(pEnemy);
+                }
+                else
+                {
+                    delete pEnemy;
+                }
+            }
+
+            // YENİ: Başlangıçta 10 adet ROBOT_TURRET spawn et
+            if (_pRobotTurretEnemyBitmap) {
+                // Robot turret için boyutları al (bitmap farklı olabilir)
+                int robotTurretWidthInTiles = (_pRobotTurretEnemyBitmap->GetWidth() + TILE_SIZE - 1) / TILE_SIZE;
+                int robotTurretHeightInTiles = (_pRobotTurretEnemyBitmap->GetHeight() + TILE_SIZE - 1) / TILE_SIZE;
+
+                for (int i = 0; i < 10; i++) {
+                    Enemy* pRobotEnemy = new Enemy(_pRobotTurretEnemyBitmap, globalBounds, BA_STOP,
+                        mazeGenerator, charSprite, EnemyType::ROBOT_TURRET);
+                    // pRobotEnemy->SetNumFrames(8); // Enemy constructor'ında zaten yapılıyor
+
+                    int ex, ey;
+                    int tryCount = 0;
+                    const int maxSpawnTries = 50;
+                    do {
+                        ex = (rand() % (static_cast<int>(mazeData[0].size()) - robotTurretWidthInTiles + 1));
+                        ey = (rand() % (static_cast<int>(mazeData.size()) - robotTurretHeightInTiles + 1));
+                        tryCount++;
+                    } while (!IsAreaClearForSpawn(ex, ey, robotTurretWidthInTiles, robotTurretHeightInTiles) && tryCount < maxSpawnTries);
+
+                    if (tryCount < maxSpawnTries) {
+                        pRobotEnemy->SetPosition(ex * TILE_SIZE, ey * TILE_SIZE);
+                        game_engine->AddSprite(pRobotEnemy);
+                    }
+                    else {
+                        delete pRobotEnemy;
+                    }
+                }
+            }
+        }
+    }
+
+
     g_dwLastSpawnTime = GetTickCount();
     g_dwLastClosestEnemySpawnTime = GetTickCount();
     g_dwLastRobotTurretSpawnTime = GetTickCount(); // YENİ: Seviye geçişinde zamanlayıcıyı sıfırla
